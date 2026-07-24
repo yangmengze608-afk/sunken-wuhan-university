@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/sunken-wuhan-university/',
+  base: './',
   build: {
     outDir: 'dist',
     sourcemap: true,
