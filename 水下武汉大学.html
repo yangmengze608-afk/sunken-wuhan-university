@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水下珞珈 · 沉没的武汉大学数字孪生</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #02141d; }
+  #app { position: fixed; inset: 0; cursor: grab; }
+  #app.dragging { cursor: grabbing; }
+  #hud {
+    position: fixed; top: 14px; left: 14px; z-index: 10;
+    color: #bfe8dd; font: 12px/1.7 "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: rgba(3, 24, 32, 0.55); border: 1px solid rgba(120, 220, 200, 0.25);
+    border-radius: 8px; padding: 10px 14px; pointer-events: none;
+    backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  #hud h1 { margin: 0 0 4px 0; font-size: 15px; color: #d9f7ee; letter-spacing: 2px; }
+  #hud .dim { color: #7fb8ab; }
+  #stats { margin-top: 6px; border-top: 1px dashed rgba(120,220,200,0.25); padding-top: 5px; }
+  #stats b { color: #ffe9a8; font-weight: 600; }
+  #crosshair {
+    position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; z-index: 9;
+    margin: -3px 0 0 -3px; border-radius: 50%; pointer-events: none;
+    background: rgba(210, 255, 240, 0.55); box-shadow: 0 0 8px rgba(140, 255, 220, 0.6);
+  }
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 8;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(1, 12, 18, 0.55) 100%);
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+<div id="crosshair"></div>
+<div id="hud">
+  <h1>水下珞珈 · 沉没的武汉大学</h1>
+  <div class="dim">WASD 移动 · 空格 上浮 · Shift 快速下潜</div>
+  <div class="dim">鼠标拖拽 转动视角 · 滚轮 调节速度</div>
+  <div id="stats">深度 <b id="uiDepth">--</b> m · 速度 <b id="uiSpeed">--</b> · FPS <b id="uiFps">--</b></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* ============================================================================
+ * 水下珞珈 —— 沉没的武汉大学数字孪生（单文件 / 全程序化生成 / 写实渲染管线）
+ * 模块：01 配置与工具  02 渲染器与光照  03 水下着色注入(焦散/深度渐变/体积雾/沉积物)
+ *      04 程序化纹理(含凹凸)  05 珞珈山地形  06 湖面与水穹  07 体积光柱
+ *      08 校园建筑与废墟  09 植被(噪声树冠/远山简化)  10 水底细节
+ *      11 粒子系统  12 漫游控制器  13 距离剔除与主循环
+ * ==========================================================================*/
+if (typeof THREE === 'undefined') {
+  document.getElementById('hud').innerHTML =
+    '<h1>Three.js 加载失败</h1><div class="dim">首次打开需要联网加载 CDN 库（模型与纹理均为本地程序化生成）</div>';
+  throw new Error('THREE not loaded');
+}
+
+/* ========================= 01 全局配置与工具 ============================= */
+const CONFIG = {
+  waterLevel: 95,        // 湖面高度
+  terrainSize: 1400,     // 地形边长
+  terrainSeg: 190,       // 地形分段
+  depthRange: 92,        // 深度渐变归一化范围
+  startPos: new THREE.Vector3(205, 62, 285),
+  cullInterval: 10,      // 距离剔除检测帧间隔
+};
+
+// 可复现的种子随机数（mulberry32）
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(20260723);
+const randRange = (a, b) => a + rand() * (b - a);
+
+function hash2(x, y) {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return s - Math.floor(s);
+}
+function valueNoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi), b = hash2(xi + 1, yi);
+  const c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, oct) {
+  let sum = 0, amp = 0.5, freq = 1, norm = 0;
+  for (let i = 0; i < oct; i++) {
+    sum += valueNoise(x * freq, y * freq) * amp;
+    norm += amp; amp *= 0.5; freq *= 2.13;
+  }
+  return sum / norm;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, v) => {
+  const t = clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+/* ========================= 02 渲染器、场景、光照 ========================== */
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setClearColor(0x06222e);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// 写实渲染管线：sRGB 输出 + ACES 电影级色调映射
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.1, 2200);
+camera.position.copy(CONFIG.startPos);
+camera.rotation.order = 'YXZ';
+
+// 太阳平行光（带缓慢晃动，使水底阴影随时间摆动）
+const sunLight = new THREE.DirectionalLight(0xcdeedd, 1.55);
+sunLight.position.set(150, 300, 90);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -430; sunLight.shadow.camera.right = 430;
+sunLight.shadow.camera.top = 430; sunLight.shadow.camera.bottom = -430;
+sunLight.shadow.camera.near = 40; sunLight.shadow.camera.far = 780;
+sunLight.shadow.bias = -0.0005;
+sunLight.shadow.normalBias = 0.5;
+scene.add(sunLight);
+scene.add(sunLight.target);
+
+// 半球光模拟湖水散射环境光，避免背光面死黑
+const hemiLight = new THREE.HemisphereLight(0x5fae9f, 0x08222b, 0.9);
+scene.add(hemiLight);
+const ambLight = new THREE.AmbientLight(0x1a3f45, 0.6);
+scene.add(ambLight);
+
+/* ============== 03 水下统一着色注入（焦散/深度渐变/体积雾） ============== */
+// 共享 uniform：一次更新，全部注入材质同步生效
+const UW = {
+  time: { value: 0 },
+  waterLevel: { value: CONFIG.waterLevel },
+};
+
+// 经典迭代焦散函数（GLSL），叠加在所有受光材质上
+const GLSL_CAUSTIC = `
+  float uwCaustic(vec2 uv, float t) {
+    vec2 p = mod(uv * 6.28318, 6.28318) - 250.0;
+    vec2 i = p;
+    float c = 1.0;
+    float inten = 0.005;
+    for (int n = 0; n < 4; n++) {
+      float tt = t * (1.0 - (3.5 / float(n + 1)));
+      i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x));
+      c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / inten), p.y / (cos(i.y + tt) / inten)));
+    }
+    c /= 4.0;
+    c = 1.17 - pow(c, 1.4);
+    return pow(abs(c), 7.0);
+  }
+`;
+
+// 给 Phong 材质注入水下效果；opt.sway=true 时附加水草摆动顶点动画
+function patchUnderwater(mat, opt) {
+  opt = opt || {};
+  mat.fog = false; // 使用自定义分层体积雾，禁用内置雾
+  mat.onBeforeCompile = function (shader) {
+    shader.uniforms.uTime = UW.time;
+    shader.uniforms.uWaterLevel = UW.waterLevel;
+
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `
+        #include <common>
+        uniform float uTime;
+        varying vec3 vUwWorldPos;
+        varying vec3 vUwWorldNormal;
+      `)
+      .replace('#include <begin_vertex>', `
+        #include <begin_vertex>
+        ${opt.sway ? `
+        // 水草随水流摆动：根部固定，梢部摆幅大
+        {
+          float swayW = pow(clamp(position.y / 5.0, 0.0, 1.0), 1.5);
+          #ifdef USE_INSTANCING
+            float ph = instanceMatrix[3][0] * 0.35 + instanceMatrix[3][2] * 0.27;
+          #else
+            float ph = 0.0;
+          #endif
+          transformed.x += sin(uTime * 1.25 + ph + transformed.y * 0.5) * 0.55 * swayW;
+          transformed.z += cos(uTime * 0.85 + ph * 1.3) * 0.35 * swayW;
+        }` : ''}
+        {
+          vec4 uwP = vec4(transformed, 1.0);
+          #ifdef USE_INSTANCING
+            uwP = instanceMatrix * uwP;
+          #endif
+          vUwWorldPos = (modelMatrix * uwP).xyz;
+        }
+      `)
+      .replace('#include <defaultnormal_vertex>', `
+        #include <defaultnormal_vertex>
+        vUwWorldNormal = inverseTransformDirection(transformedNormal, viewMatrix);
+      `);
+
+    // 注入点放在 tonemapping 之前：水体着色在线性空间完成，再经 ACES/sRGB 输出
+    const siltStrength = (opt.silt !== undefined ? opt.silt : 0.42).toFixed(2);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `
+        #include <common>
+        uniform float uTime;
+        uniform float uWaterLevel;
+        varying vec3 vUwWorldPos;
+        varying vec3 vUwWorldNormal;
+        ${GLSL_CAUSTIC}
+        float uwHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float uwNoise(vec2 p) {
+          vec2 i = floor(p); vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(uwHash(i), uwHash(i + vec2(1.0, 0.0)), f.x),
+                     mix(uwHash(i + vec2(0.0, 1.0)), uwHash(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+      `)
+      .replace('#include <tonemapping_fragment>', `
+        {
+          // --- 深度因子：0=近湖面，1=深水 ---
+          float uwDepth = clamp((uWaterLevel - vUwWorldPos.y) / ${CONFIG.depthRange.toFixed(1)}, 0.0, 1.0);
+          vec3 uwN = normalize(vUwWorldNormal);
+
+          // --- 沉积物覆盖：朝上表面积起淤泥藻膜，久沉水下的质感 ---
+          float siltN = uwNoise(vUwWorldPos.xz * 0.35) * 0.6 + uwNoise(vUwWorldPos.xz * 1.7) * 0.4;
+          float siltAmt = smoothstep(0.4, 0.95, uwN.y) * (0.45 + 0.55 * siltN) * ${siltStrength};
+          vec3 siltCol = vec3(0.17, 0.19, 0.13) * (0.75 + 0.5 * siltN);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, siltCol, siltAmt);
+
+          // --- 动态焦散：朝上的面更强，随深度衰减 ---
+          float causticFade = pow(1.0 - uwDepth, 1.35);
+          float ca = uwCaustic(vUwWorldPos.xz * 0.045 + vec2(uTime * 0.03, uTime * 0.021), uTime * 0.55);
+          float upFacing = 0.22 + 0.78 * clamp(uwN.y, 0.0, 1.0);
+          gl_FragColor.rgb += vec3(0.5, 0.82, 0.74) * ca * causticFade * upFacing * 0.6;
+
+          // --- 水体颜色随深度渐变：浅处清透湖绿 -> 深处暗青墨蓝 ---
+          vec3 shallowTint = vec3(0.30, 0.60, 0.51);
+          vec3 deepTint = vec3(0.045, 0.12, 0.19);
+          vec3 wTint = mix(shallowTint, deepTint, uwDepth);
+          gl_FragColor.rgb *= mix(vec3(1.0), wTint * 1.6, 0.5 + 0.34 * uwDepth);
+
+          // --- 分层体积雾：近景清晰，远处按深度加浓雾化 ---
+          float uwDist = length(vUwWorldPos - cameraPosition);
+          float density = mix(0.0038, 0.0085, uwDepth);
+          float fogF = 1.0 - exp(-max(uwDist - 10.0, 0.0) * density);
+          vec3 fogCol = mix(vec3(0.055, 0.20, 0.20), vec3(0.012, 0.055, 0.095), uwDepth * 0.85);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogCol, clamp(fogF, 0.0, 1.0));
+        }
+        #include <tonemapping_fragment>
+      `);
+  };
+  return mat;
+}
+
+/* =================== 04 程序化 Canvas 纹理 ============================== */
+function makeTexture(w, h, painter, repX, repY) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  painter(cv.getContext('2d'), w, h);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repX || 1, repY || 1);
+  tex.encoding = THREE.sRGBEncoding;   // 颜色贴图按 sRGB 解码，配合写实管线
+  return tex;
+}
+// 灰度凹凸贴图（保持线性编码），给墙面/石材/地形提供表面细节起伏
+function makeBumpTexture(size, cell) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < size * 14; i++) {
+    const v = Math.floor(randRange(60, 200));
+    ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+    ctx.globalAlpha = rand() * 0.5;
+    const s = 1 + rand() * cell;
+    ctx.fillRect(rand() * size, rand() * size, s, s);
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+// 地形细节色（线性编码中性灰绿，与顶点色相乘打散大面积色块）
+function paintGroundDetail(ctx, w, h) {
+  ctx.fillStyle = '#c9cdc2'; ctx.fillRect(0, 0, w, h);
+  speckle(ctx, w, h, 1000, '#a8ae9c', 0.25);
+  speckle(ctx, w, h, 500, '#dadcd0', 0.2);
+  for (let i = 0; i < 26; i++) {  // 大块色斑：泥斑与苔痕
+    ctx.fillStyle = rand() > 0.5 ? 'rgba(120,126,100,0.16)' : 'rgba(90,110,88,0.14)';
+    ctx.beginPath();
+    ctx.ellipse(rand() * w, rand() * h, 12 + rand() * 40, 8 + rand() * 26, rand() * 3, 0, 7);
+    ctx.fill();
+  }
+}
+function speckle(ctx, w, h, n, color, aMax) {
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = color;
+    ctx.globalAlpha = rand() * aMax;
+    ctx.fillRect(rand() * w, rand() * h, 1 + rand() * 3, 1 + rand() * 3);
+  }
+  ctx.globalAlpha = 1;
+}
+function paintWall(ctx, w, h) {  // 老墙面：米白抹灰 + 水渍藻痕
+  ctx.fillStyle = '#c9c2b0'; ctx.fillRect(0, 0, w, h);
+  speckle(ctx, w, h, 900, '#8a8474', 0.35);
+  speckle(ctx, w, h, 500, '#5d7a5e', 0.30);
+  for (let i = 0; i < 10; i++) { // 纵向藻绿水渍
+    ctx.fillStyle = 'rgba(60,92,70,0.18)';
+    const x = rand() * w;
+    ctx.fillRect(x, rand() * h * 0.3, 4 + rand() * 14, h * (0.4 + rand() * 0.6));
+  }
+  ctx.fillStyle = 'rgba(40,55,45,0.35)';
+  ctx.fillRect(0, h * 0.82, w, h * 0.18); // 底部沉积污渍
+}
+// 建筑立面：墙面 + 规则暗窗（含窗台/窗楣阴影/玻璃色差/破损窗洞）
+function paintFacade(ctx, w, h) {
+  paintWall(ctx, w, h);
+  const cols = 6, rows = 3;
+  const glass = ['#1b2a2c', '#16232a', '#213134', '#0e1a1c'];
+  for (let r = 0; r < rows; r++) {
+    // 层间腰线
+    ctx.fillStyle = 'rgba(90,84,70,0.5)';
+    ctx.fillRect(0, h * r / rows + 2, w, 3);
+    for (let c = 0; c < cols; c++) {
+      const x = w * (c + 0.28) / cols, y = h * (r + 0.24) / rows;
+      const ww = w / cols * 0.44, wh = h / rows * 0.5;
+      ctx.fillStyle = glass[Math.floor(rand() * glass.length)];
+      ctx.fillRect(x, y, ww, wh);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';           // 窗楣投影
+      ctx.fillRect(x, y, ww, 5);
+      if (rand() < 0.18) {                          // 破损：黑洞窗
+        ctx.fillStyle = '#060a0b';
+        ctx.fillRect(x + ww * 0.1, y + wh * 0.15, ww * 0.8, wh * 0.7);
+      } else {
+        ctx.fillStyle = 'rgba(140,170,160,0.28)';   // 玻璃反光
+        ctx.fillRect(x + ww * 0.12, y + wh * 0.1, ww * 0.22, wh * 0.55);
+      }
+      ctx.strokeStyle = '#6d675a'; ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, ww, wh);
+      ctx.strokeStyle = 'rgba(120,150,140,0.5)'; ctx.lineWidth = 1;
+      ctx.strokeRect(x + ww * 0.5, y, 0.5, wh);
+      ctx.fillStyle = '#a89f8c';                    // 窗台
+      ctx.fillRect(x - 5, y + wh, ww + 10, 5);
+      ctx.fillStyle = 'rgba(50,64,52,0.35)';        // 窗下雨渍
+      ctx.fillRect(x + ww * 0.2, y + wh + 5, ww * 0.6, 16);
+    }
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';               // 檐口整体压暗
+  ctx.fillRect(0, 0, w, 7);
+}
+function paintRoof(ctx, w, h) {  // 孔雀绿琉璃瓦（樱顶标志色）
+  ctx.fillStyle = '#1e5c49'; ctx.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 10) {
+    ctx.fillStyle = 'rgba(8,34,28,0.55)'; ctx.fillRect(0, y, w, 3);
+    ctx.fillStyle = 'rgba(120,210,180,0.20)'; ctx.fillRect(0, y + 3, w, 2);
+  }
+  for (let x = 0; x < w; x += 16) {
+    ctx.fillStyle = 'rgba(10,40,32,0.35)'; ctx.fillRect(x, 0, 2, h);
+  }
+  speckle(ctx, w, h, 350, '#0a2620', 0.4);
+}
+// 石材：花岗岩灰 + 裂纹
+function paintStone(ctx, w, h) {
+  ctx.fillStyle = '#98938a'; ctx.fillRect(0, 0, w, h);
+  speckle(ctx, w, h, 1200, '#6f6a60', 0.4);
+  speckle(ctx, w, h, 500, '#b8b3a8', 0.35);
+  ctx.strokeStyle = 'rgba(50,48,44,0.5)';
+  for (let i = 0; i < 7; i++) { // 裂纹折线
+    ctx.beginPath();
+    let x = rand() * w, y = rand() * h;
+    ctx.moveTo(x, y);
+    for (let j = 0; j < 5; j++) { x += randRange(-30, 30); y += randRange(-30, 30); ctx.lineTo(x, y); }
+    ctx.lineWidth = 1 + rand();
+    ctx.stroke();
+  }
+}
+// 沥青路面 + 磨损中线
+function paintRoad(ctx, w, h) {
+  ctx.fillStyle = '#3a3e41'; ctx.fillRect(0, 0, w, h);
+  speckle(ctx, w, h, 1000, '#25282a', 0.5);
+  speckle(ctx, w, h, 400, '#565c60', 0.3);
+  ctx.fillStyle = 'rgba(200,195,170,0.28)';
+  for (let y = 0; y < h; y += 44) ctx.fillRect(w / 2 - 3, y, 6, 26);
+  ctx.fillStyle = 'rgba(45,70,55,0.25)';
+  ctx.fillRect(0, 0, 10, h); ctx.fillRect(w - 10, 0, 10, h);
+}
+// 牌坊牌匾："国立武汉大学"
+function paintPlaque(ctx, w, h) {
+  ctx.fillStyle = '#16233f'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#b99b56'; ctx.lineWidth = 8;
+  ctx.strokeRect(8, 8, w - 16, h - 16);
+  ctx.fillStyle = '#d9c07a';
+  ctx.font = 'bold 60px "Songti SC", "SimSun", serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('国 立 武 汉 大 学', w / 2, h / 2 + 4);
+}
+// 树皮
+function paintBark(ctx, w, h) {
+  ctx.fillStyle = '#7a644a'; ctx.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 6) {
+    ctx.fillStyle = rand() > 0.5 ? 'rgba(52,40,26,0.45)' : 'rgba(130,110,80,0.4)';
+    ctx.fillRect(x, 0, 2 + rand() * 3, h);
+  }
+}
+
+const TEX = {
+  wall: makeTexture(256, 256, paintWall, 2, 1),
+  facade: makeTexture(512, 256, paintFacade, 1, 1),
+  roof: makeTexture(256, 256, paintRoof, 3, 2),
+  stone: makeTexture(256, 256, paintStone, 2, 2),
+  road: makeTexture(128, 256, paintRoad, 1, 6),
+  plaque: makeTexture(512, 128, paintPlaque, 1, 1),
+  bark: makeTexture(128, 128, paintBark, 1, 2),
+  bumpFine: makeBumpTexture(256, 3),
+  bumpCoarse: makeBumpTexture(256, 8),
+};
+TEX.ground = makeTexture(512, 512, paintGroundDetail, 90, 90);
+TEX.ground.encoding = THREE.LinearEncoding;   // 与顶点色相乘，保持中性
+
+// 共享材质库（全部注入水下着色，opt 透传沉积物强度等参数）
+function phong(params, opt) { return patchUnderwater(new THREE.MeshPhongMaterial(params), opt); }
+const MAT = {
+  wall: phong({ map: TEX.wall, bumpMap: TEX.bumpFine, bumpScale: 0.12, shininess: 6 }),
+  facade: phong({ map: TEX.facade, bumpMap: TEX.bumpFine, bumpScale: 0.1, shininess: 6 }),
+  facadeSide: phong({ map: TEX.wall, bumpMap: TEX.bumpFine, bumpScale: 0.12, shininess: 6 }),
+  roof: phong({ map: TEX.roof, bumpMap: TEX.bumpFine, bumpScale: 0.08, shininess: 22, specular: 0x335544 }),
+  stone: phong({ map: TEX.stone, bumpMap: TEX.bumpCoarse, bumpScale: 0.28, shininess: 4 }),
+  stoneDark: phong({ map: TEX.stone, bumpMap: TEX.bumpCoarse, bumpScale: 0.35, color: 0x8a8a84, shininess: 4 }),
+  road: phong({ map: TEX.road, bumpMap: TEX.bumpFine, bumpScale: 0.06, shininess: 3 }),
+  plaque: phong({ map: TEX.plaque, shininess: 10 }),
+  bark: phong({ map: TEX.bark, bumpMap: TEX.bumpFine, bumpScale: 0.2, shininess: 2 }),
+  rubble: phong({ map: TEX.stone, bumpMap: TEX.bumpCoarse, bumpScale: 0.4, color: 0x9a968c, shininess: 2, side: THREE.DoubleSide }),
+  rust: phong({ color: 0x5e3c28, bumpMap: TEX.bumpFine, bumpScale: 0.1, shininess: 8 }),
+  rustDark: phong({ color: 0x3c2a1c, bumpMap: TEX.bumpFine, bumpScale: 0.1, shininess: 4 }),
+  bookA: phong({ color: 0x7a4a3a, shininess: 4 }),
+  bookB: phong({ color: 0x3a5a6a, shininess: 4 }),
+  bookC: phong({ color: 0x6a6a4a, shininess: 4 }),
+  leafCherry: phong({ color: 0xa84573, emissive: 0x260c18, shininess: 5 }, { silt: 0.12 }),
+  leafPlane: phong({ color: 0x5c7830, emissive: 0x0c1205, shininess: 5 }, { silt: 0.15 }),
+  leafPine: phong({ color: 0x22422c, emissive: 0x050c05, shininess: 5 }, { silt: 0.18 }),
+  leafPile: phong({ color: 0x4a3a1e, bumpMap: TEX.bumpCoarse, bumpScale: 0.3, shininess: 2 }),
+  seaweed: patchUnderwater(new THREE.MeshPhongMaterial({
+    color: 0x2e7d4f, emissive: 0x0a2416, shininess: 12,
+    side: THREE.DoubleSide, transparent: true, opacity: 0.88,
+  }), { sway: true, silt: 0.1 }),
+};
+
+/* ==================== 05 珞珈山地形 ==================================== */
+// 高斯山体叠加：主峰（珞珈山）+ 侧峰 + FBM 起伏，东侧压低成东湖湖床
+function gauss(x, z, cx, cz, sx, sz, amp) {
+  const dx = (x - cx) / sx, dz = (z - cz) / sz;
+  return amp * Math.exp(-(dx * dx + dz * dz) * 0.5);
+}
+function terrainHeight(x, z) {
+  let h = 8;
+  h += gauss(x, z, -150, -140, 145, 108, 56);   // 珞珈山主峰
+  h += gauss(x, z, -300, -20, 90, 90, 20);      // 西侧峰
+  h += gauss(x, z, -30, -260, 110, 85, 24);     // 北侧峰
+  h += gauss(x, z, -60, 320, 160, 120, 12);     // 南部缓丘
+  h += (fbm(x * 0.008 + 7.3, z * 0.008 + 3.1, 4) - 0.5) * 11;  // 中尺度起伏
+  h += (fbm(x * 0.05, z * 0.05, 3) - 0.5) * 1.6;               // 细碎起伏
+  // 东湖岸线：正弦 + 噪声弯曲的天然湖岸，东侧渐变为湖床
+  const shore = 330 + 55 * Math.sin(z * 0.006) + 45 * (fbm(z * 0.004 + 11.7, 3.3, 3) - 0.5) * 2;
+  const lakeT = smoothstep(shore - 70, shore + 60, x);
+  const bed = -9 + (fbm(x * 0.02, z * 0.02, 3) - 0.5) * 3;
+  h = lerp(h, bed, lakeT);
+  return h;
+}
+
+function createTerrain() {
+  const geo = new THREE.PlaneGeometry(CONFIG.terrainSize, CONFIG.terrainSize, CONFIG.terrainSeg, CONFIG.terrainSeg);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setY(i, terrainHeight(pos.getX(i), pos.getZ(i)));
+  }
+  geo.computeVertexNormals();
+  // 顶点色分层：湖床淤泥 / 沙土 / 腐殖土 / 岩层条带 / 陡坡岩石
+  const colors = new Float32Array(pos.count * 3);
+  const nrm = geo.attributes.normal;
+  const cSilt = [0.20, 0.24, 0.20], cSand = [0.42, 0.40, 0.30];
+  const cSoil = [0.33, 0.27, 0.19], cMoss = [0.18, 0.30, 0.22];
+  const cRock = [0.44, 0.42, 0.39], cStrata = [0.36, 0.32, 0.27];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const slope = 1 - nrm.getY(i);
+    const jitter = (fbm(x * 0.03 + 5, z * 0.03 + 9, 3) - 0.5) * 8;
+    let r, g, b;
+    if (y < 2 + jitter * 0.4) {          // 湖床淤泥
+      r = cSilt[0]; g = cSilt[1]; b = cSilt[2];
+    } else if (y < 10 + jitter * 0.5) {  // 近岸沙土
+      const t = smoothstep(2, 10, y);
+      r = lerp(cSilt[0], cSand[0], t); g = lerp(cSilt[1], cSand[1], t); b = lerp(cSilt[2], cSand[2], t);
+    } else if (y < 30 + jitter) {        // 腐殖土 / 苔藓地
+      const t = smoothstep(10, 30, y + jitter * 0.5);
+      r = lerp(cSand[0], cMoss[0], t); g = lerp(cSand[1], cMoss[1], t); b = lerp(cSand[2], cMoss[2], t);
+    } else {                             // 山体：土壤与岩层条带
+      const band = 0.5 + 0.5 * Math.sin(y * 0.55 + jitter);  // 沉积岩层条带
+      r = lerp(cSoil[0], cStrata[0], band);
+      g = lerp(cSoil[1], cStrata[1], band);
+      b = lerp(cSoil[2], cStrata[2], band);
+    }
+    // 陡坡露岩
+    const rockT = smoothstep(0.22, 0.5, slope);
+    r = lerp(r, cRock[0], rockT); g = lerp(g, cRock[1], rockT); b = lerp(b, cRock[2], rockT);
+    // 微噪声打散
+    const nv = 0.9 + fbm(x * 0.12, z * 0.12, 2) * 0.2;
+    colors[i * 3] = r * nv; colors[i * 3 + 1] = g * nv; colors[i * 3 + 2] = b * nv;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // 细节贴图与顶点色相乘，凹凸贴图提供近景微起伏
+  const mat = phong({
+    vertexColors: true, shininess: 3,
+    map: TEX.ground, bumpMap: TEX.bumpFine, bumpScale: 0.3,
+  }, { silt: 0.2 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  scene.add(mesh);
+}
+createTerrain();
+
+/* ============ 06 湖面 Shader 与背景水穹 ================================= */
+// 湖面（从水下仰视）：正弦波叠加 + 解析法线 + 太阳透光光斑
+const waterUniforms = {
+  uTime: UW.time,
+  uSunPos: { value: new THREE.Vector3(150, 400, 90) },
+};
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: waterUniforms,
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  vertexShader: `
+    uniform float uTime;
+    varying vec3 vWPos;
+    varying vec3 vNrm;
+    void main() {
+      vec2 p = vec2(position.x, position.z);
+      float h = sin(p.x * 0.020 + uTime * 0.80) * 1.2
+              + sin((p.x + p.y) * 0.013 - uTime * 0.60) * 1.0
+              + sin(p.y * 0.030 + uTime * 1.10) * 0.7;
+      float dhx = 0.020 * cos(p.x * 0.020 + uTime * 0.80) * 1.2
+                + 0.013 * cos((p.x + p.y) * 0.013 - uTime * 0.60) * 1.0;
+      float dhz = 0.013 * cos((p.x + p.y) * 0.013 - uTime * 0.60) * 1.0
+                + 0.030 * cos(p.y * 0.030 + uTime * 1.10) * 0.7;
+      vNrm = normalize(vec3(-dhx, 1.0, -dhz));
+      vec3 disp = vec3(position.x, position.y + h, position.z);
+      vec4 wp = modelMatrix * vec4(disp, 1.0);
+      vWPos = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform vec3 uSunPos;
+    varying vec3 vWPos;
+    varying vec3 vNrm;
+    void main() {
+      vec3 V = normalize(vWPos - cameraPosition);
+      // 波面明暗（浪脊透亮）
+      float facet = pow(clamp(dot(vNrm, normalize(vec3(0.35, 1.0, 0.2))), 0.0, 1.0), 3.0);
+      vec3 base = mix(vec3(0.05, 0.24, 0.27), vec3(0.16, 0.58, 0.52), facet);
+      // 太阳透过湖面的晃动光斑
+      vec3 toSun = normalize(uSunPos - cameraPosition);
+      vec3 Vd = normalize(V + vNrm * 0.35); // 波面扰动折射方向
+      float glowCore = pow(max(dot(Vd, toSun), 0.0), 140.0);
+      float glowHalo = pow(max(dot(Vd, toSun), 0.0), 10.0);
+      vec3 col = base + glowCore * vec3(1.4, 1.3, 1.0) + glowHalo * vec3(0.30, 0.36, 0.30);
+      // 远处渐隐融入水雾（颜色与透明度同时衔接背景水穹，避免生硬水平线）
+      float dist = length(vWPos - cameraPosition);
+      float fade = smoothstep(140.0, 680.0, dist);
+      col = mix(col, vec3(0.075, 0.21, 0.22), fade);
+      gl_FragColor = vec4(col, 0.93 * (1.0 - fade * 0.75));
+    }
+  `,
+});
+const waterMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(2400, 2400, 110, 110).rotateX(-Math.PI / 2), waterMat);
+waterMesh.position.y = CONFIG.waterLevel;
+scene.add(waterMesh);
+
+// 背景水穹：按视线方向的深度渐变，包裹整个场景
+const domeMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false,
+  vertexShader: `
+    varying vec3 vDir;
+    void main() {
+      vDir = normalize(position);
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vDir;
+    void main() {
+      float up = clamp(vDir.y * 0.5 + 0.5, 0.0, 1.0);
+      vec3 deep = vec3(0.012, 0.055, 0.085);
+      vec3 mid  = vec3(0.035, 0.16, 0.18);
+      vec3 top  = vec3(0.14, 0.48, 0.42);
+      vec3 col = mix(deep, mid, smoothstep(0.0, 0.55, up));
+      col = mix(col, top, pow(smoothstep(0.5, 1.0, up), 2.0));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+});
+const dome = new THREE.Mesh(new THREE.SphereGeometry(1600, 24, 14), domeMat);
+dome.renderOrder = -10;
+scene.add(dome);
+
+/* ==================== 07 体积光柱 ====================================== */
+const shaftMats = [];
+function createLightShafts() {
+  const group = new THREE.Group();
+  const geo = new THREE.PlaneGeometry(18, 78, 1, 1);
+  for (let i = 0; i < 9; i++) {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uTime: UW.time, uPhase: { value: rand() * 10 } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      vertexShader: `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uPhase;
+        varying vec2 vUv;
+        void main() {
+          float edge = pow(1.0 - abs(vUv.x - 0.5) * 2.0, 2.2);
+          float vfade = smoothstep(0.0, 0.45, vUv.y) * (0.35 + 0.65 * vUv.y);
+          float flick = 0.55 + 0.45 * sin(uTime * 0.65 + uPhase);
+          float a = edge * vfade * flick * 0.13;
+          gl_FragColor = vec4(vec3(0.42, 0.78, 0.70) * a, a);
+        }
+      `,
+    });
+    shaftMats.push(mat);
+    const m = new THREE.Mesh(geo, mat);
+    const ang = rand() * Math.PI * 2, rr = 60 + rand() * 260;
+    m.position.set(Math.cos(ang) * rr - 60, CONFIG.waterLevel - 40, Math.sin(ang) * rr + 20);
+    m.rotation.y = rand() * Math.PI;
+    m.rotation.z = 0.16; // 顺着太阳方向微倾
+    group.add(m);
+  }
+  scene.add(group);
+}
+createLightShafts();
+
+/* ============ 08 校园建筑（程序化生成 + 废墟叙事） ====================== */
+function shadowed(mesh) {
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+function box(w, h, d, mat, x, y, z) {
+  const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+  m.position.set(x, y, z);
+  return m;
+}
+// 全局废墟碎块收集 -> 统一 InstancedMesh 一次绘制
+const rubbleTransforms = [];
+function scatterRubble(cx, cy, cz, radius, count, sMin, sMax) {
+  for (let i = 0; i < count; i++) {
+    const a = rand() * Math.PI * 2, r = Math.sqrt(rand()) * radius;
+    const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+    rubbleTransforms.push({
+      pos: [x, (cy !== null ? cy : terrainHeight(x, z)) + 0.25, z],
+      rot: [rand() * Math.PI, rand() * Math.PI, rand() * Math.PI],
+      scl: randRange(sMin, sMax),
+    });
+  }
+}
+function buildRubbleInstanced() {
+  const geo = new THREE.DodecahedronGeometry(0.7, 0);
+  const inst = new THREE.InstancedMesh(geo, MAT.rubble, rubbleTransforms.length);
+  const dummy = new THREE.Object3D();
+  rubbleTransforms.forEach((t, i) => {
+    dummy.position.set(t.pos[0], t.pos[1], t.pos[2]);
+    dummy.rotation.set(t.rot[0], t.rot[1], t.rot[2]);
+    dummy.scale.setScalar(t.scl);
+    dummy.updateMatrix();
+    inst.setMatrixAt(i, dummy.matrix);
+  });
+  inst.castShadow = true; inst.receiveShadow = true;
+  scene.add(inst);
+}
+// 残破墙体：砌块网格，越往上缺失越多，形成坍塌锯齿
+function ruinedWall(group, width, height, thick, x, y, z, rotY) {
+  const bw = 2.0, bh = 1.15;
+  const cols = Math.round(width / bw), rows = Math.round(height / bh);
+  const wall = new THREE.Group();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const missP = Math.pow(r / rows, 2.2) * 1.35 + (fbm(c * 0.7, r * 0.7, 2) - 0.5) * 0.5;
+      if (rand() < missP) continue;
+      const b = box(bw * 0.98, bh * 0.96, thick, MAT.rubble,
+        (c - cols / 2 + 0.5) * bw + (r % 2 ? bw * 0.18 : 0),
+        r * bh + bh / 2, 0);
+      wall.add(b);
+    }
+  }
+  wall.position.set(x, y, z);
+  wall.rotation.y = rotY;
+  group.add(wall);
+}
+
+// ---- 武大牌坊（断裂状态） ----
+function createPaiFang(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  const colX = [-10.5, -3.5, 3.5, 10.5];
+  const colH = [10.5, 13, 13, 10.5];
+  const colGeo = new THREE.CylinderGeometry(0.7, 0.85, 1, 10);
+  for (let i = 0; i < 4; i++) {
+    if (i === 3) {
+      // 右外柱断裂：下半段直立，上半段倒伏在地
+      const low = shadowed(new THREE.Mesh(colGeo, MAT.stone));
+      low.scale.y = 4.6; low.position.set(colX[i], 2.3, 0);
+      g.add(low);
+      const fallen = shadowed(new THREE.Mesh(colGeo, MAT.stone));
+      fallen.scale.y = 5.4;
+      fallen.position.set(colX[i] + 4.5, 0.8, 4.5);
+      fallen.rotation.set(Math.PI / 2 - 0.12, 0.7, 0.2);
+      g.add(fallen);
+      continue;
+    }
+    const c = shadowed(new THREE.Mesh(colGeo, MAT.stone));
+    c.scale.y = colH[i]; c.position.set(colX[i], colH[i] / 2, 0);
+    g.add(c);
+    g.add(box(2.4, 0.6, 2.4, MAT.stoneDark, colX[i], 0.3, 0)); // 柱础
+  }
+  // 中门横梁 + 牌匾 + 琉璃瓦顶
+  g.add(box(9.4, 1.0, 1.4, MAT.stone, 0, 10.9, 0));
+  g.add(box(9.4, 0.8, 1.3, MAT.stone, 0, 13.3, 0));
+  const plaque = box(7.2, 1.7, 0.5, MAT.plaque, 0, 12.1, 0);
+  g.add(plaque);
+  const roofMid = shadowed(new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), MAT.roof));
+  roofMid.scale.set(7.4, 2.2, 3.2); roofMid.rotation.y = Math.PI / 4;
+  roofMid.position.set(0, 14.8, 0);
+  g.add(roofMid);
+  // 左侧门横梁与瓦顶完好
+  g.add(box(6.4, 0.9, 1.2, MAT.stone, -7, 9.6, 0));
+  const roofL = shadowed(new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), MAT.roof));
+  roofL.scale.set(5.4, 1.7, 2.8); roofL.rotation.y = Math.PI / 4;
+  roofL.position.set(-7, 10.9, 0);
+  g.add(roofL);
+  // 右侧门横梁坠落，斜倚在地
+  const beamR = box(6.4, 0.9, 1.2, MAT.stone, 7.8, 1.6, 2.2);
+  beamR.rotation.set(0.15, 0.5, 0.9);
+  g.add(beamR);
+  scatterRubble(x + 8, null, z + 2, 5.5, 26, 0.4, 1.3);
+  g.position.set(x, baseY + 0.1, z);
+  scene.add(g);
+  registerCullable(g, 720);
+}
+
+// ---- 樱顶老斋舍：依山而建的三级台地宿舍 + 百步梯 + 樱顶亭 ----
+function createLaoZhaiShe(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z + 10);
+  const tierW = 66, tierH = 9, tierD = 14;
+  for (let t = 0; t < 3; t++) {
+    const ty = baseY + t * 7.2, tz = -t * 11.5;
+    const facMat = MAT.facade.clone();
+    facMat.map = TEX.facade.clone();
+    facMat.map.repeat.set(5, 1);
+    facMat.map.needsUpdate = true;
+    patchUnderwater(facMat);
+    const body = box(tierW, tierH, tierD, facMat, 0, ty + tierH / 2, tz);
+    g.add(body);
+    // 前廊拱柱
+    for (let cx = -tierW / 2 + 3; cx <= tierW / 2 - 3; cx += 5.4) {
+      if (t === 2 && cx > tierW / 2 - 16) continue; // 顶层右端坍塌，柱廊缺失
+      const col = shadowed(new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.5, tierH * 0.82, 8), MAT.wall));
+      col.position.set(cx, ty + tierH * 0.41, tz + tierD / 2 + 0.8);
+      g.add(col);
+    }
+    // 平台女儿墙
+    g.add(box(tierW, 1.0, 1.0, MAT.stone, 0, ty + tierH + 0.5, tz + tierD / 2 - 0.5));
+  }
+  // 顶层右端坍塌：残墙 + 碎砖堆
+  ruinedWall(g, 14, 7, 1.2, tierW / 2 - 8, baseY + 14.4 + 1.8, -23 + tierD / 2, 0);
+  scatterRubble(x + tierW / 2 - 8, baseY + 15, z - 20, 8, 30, 0.4, 1.2);
+  // 樱顶：三座孔雀绿琉璃瓦亭
+  const topY = baseY + 14.4 + tierH;
+  [[-20, 12, 4.4], [0, 16, 5.6], [20, 12, 4.4]].forEach(p => {
+    const hall = box(p[1], 4.6, 10, MAT.wall, p[0], topY + 2.3, -23);
+    g.add(hall);
+    const roof = shadowed(new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), MAT.roof));
+    roof.scale.set(p[1] * 0.78, p[2], 8);
+    roof.rotation.y = Math.PI / 4;
+    roof.position.set(p[0], topY + 4.6 + p[2] / 2, -23);
+    g.add(roof);
+  });
+  // 百步梯：中央大台阶
+  makeStoneSteps(x, z + 28, x, z - 2, 8);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  registerCullable(g, 900);
+}
+
+// ---- 老图书馆：珞珈山顶，八角重檐 ----
+function createOldLibrary(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  g.add(box(36, 2.4, 28, MAT.stone, 0, 1.2, 0));       // 台基
+  const facMat = MAT.facade.clone();
+  facMat.map = TEX.facade.clone();
+  facMat.map.repeat.set(2, 1); facMat.map.needsUpdate = true;
+  patchUnderwater(facMat);
+  g.add(box(26, 12, 20, facMat, 0, 2.4 + 6, 0));       // 主体大厅
+  // 正面列柱
+  for (let cx = -10; cx <= 10; cx += 4) {
+    const col = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 10.5, 8), MAT.wall));
+    col.position.set(cx, 2.4 + 5.25, 11.2);
+    g.add(col);
+  }
+  g.add(box(28, 1.4, 23, MAT.stone, 0, 15.1, 0));      // 檐口平座
+  // 八角塔身 + 重檐琉璃瓦顶
+  const oct = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(8.4, 8.4, 7, 8), MAT.wall));
+  oct.position.set(0, 15.8 + 3.5, 0);
+  g.add(oct);
+  const roof1 = shadowed(new THREE.Mesh(new THREE.ConeGeometry(11.5, 5.4, 8), MAT.roof));
+  roof1.position.set(0, 22.8 + 2.7, 0);
+  g.add(roof1);
+  const lantern = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 3, 8), MAT.wall));
+  lantern.position.set(0, 28.2 + 1.5, 0);
+  g.add(lantern);
+  const roof2 = shadowed(new THREE.Mesh(new THREE.ConeGeometry(4.6, 3.4, 8), MAT.roof));
+  roof2.position.set(0, 31.2 + 1.7, 0);
+  g.add(roof2);
+  g.position.set(x, baseY - 0.6, z);
+  scene.add(g);
+  registerCullable(g, 1000);
+}
+
+// ---- 行政主楼：中央塔楼 + 两翼 ----
+function createAdminBuilding(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  const facMat = MAT.facade.clone();
+  facMat.map = TEX.facade.clone();
+  facMat.map.repeat.set(2, 2); facMat.map.needsUpdate = true;
+  patchUnderwater(facMat);
+  g.add(box(26, 18, 16, facMat, 0, 9, 0));            // 中央主体
+  g.add(box(10, 5, 10, MAT.wall, 0, 18 + 2.5, 0));    // 塔楼
+  const towerRoof = shadowed(new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), MAT.roof));
+  towerRoof.scale.set(8.4, 4.4, 8.4); towerRoof.rotation.y = Math.PI / 4;
+  towerRoof.position.set(0, 23 + 2.2, 0);
+  g.add(towerRoof);
+  [-1, 1].forEach(s => {                              // 两翼
+    const wingMat = MAT.facade.clone();
+    wingMat.map = TEX.facade.clone();
+    wingMat.map.repeat.set(2, 1); wingMat.map.needsUpdate = true;
+    patchUnderwater(wingMat);
+    g.add(box(24, 10, 13, wingMat, s * 25, 5, 0));
+    const wr = shadowed(new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), MAT.roof));
+    wr.scale.set(17, 3.4, 10);
+    wr.rotation.y = Math.PI / 4;
+    wr.position.set(s * 25, 10 + 1.7, 0);
+    g.add(wr);
+  });
+  // 正门石阶
+  for (let i = 0; i < 5; i++) {
+    g.add(box(14 - i, 0.5, 1.6, MAT.stone, 0, 0.25 + i * 0.5, 9.5 - i * 1.2));
+  }
+  g.position.set(x, baseY - 0.8, z);
+  scene.add(g);
+  registerCullable(g, 900);
+}
+
+// ---- 枫园湖滨教学楼：临湖废墟（墙体坍塌 / 半塌屋面） ----
+function createFengYuan(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  g.add(box(44, 1.6, 18, MAT.stone, 0, 0.8, 0));       // 残存台基
+  // 后墙完好，前墙与侧墙坍塌成锯齿残垣
+  const backMat = MAT.facade.clone();
+  backMat.map = TEX.facade.clone();
+  backMat.map.repeat.set(3, 1); backMat.map.needsUpdate = true;
+  backMat.side = THREE.DoubleSide;
+  patchUnderwater(backMat);
+  const back = box(42, 11, 1.2, backMat, 0, 1.6 + 5.5, -7.5);
+  g.add(back);
+  ruinedWall(g, 42, 9.5, 1.2, 0, 1.6, 7.5, 0);         // 前墙残垣
+  ruinedWall(g, 14, 8, 1.2, -21, 1.6, 0, Math.PI / 2); // 左山墙残垣
+  ruinedWall(g, 14, 6, 1.2, 21, 1.6, 0, Math.PI / 2);  // 右山墙残垣
+  // 半塌的屋面板：一端搭在后墙，一端砸在地上
+  const slab = box(20, 0.8, 17, MAT.rubble, -9, 7.2, 0.5);
+  slab.rotation.z = 0.42;
+  g.add(slab);
+  // 内部残留：断柱
+  for (let i = 0; i < 4; i++) {
+    const col = shadowed(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.55, randRange(2, 6), 8), MAT.wall));
+    col.position.set(randRange(-16, 16), 1.6 + col.geometry.parameters.height / 2, randRange(-4, 4));
+    g.add(col);
+  }
+  scatterRubble(x, null, z, 20, 60, 0.4, 1.5);
+  g.position.set(x, baseY - 0.4, z);
+  scene.add(g);
+  registerCullable(g, 800);
+}
+
+// ---- 道路：分段贴合地形（组中心取路径中点，供距离剔除使用） ----
+function makeRoad(x0, z0, x1, z1, width) {
+  const len = Math.hypot(x1 - x0, z1 - z0);
+  const n = Math.max(2, Math.ceil(len / 9));
+  const yaw = Math.atan2(x1 - x0, z1 - z0);
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  const g = new THREE.Group();
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const x = lerp(x0, x1, t), z = lerp(z0, z1, t);
+    const seg = new THREE.Mesh(new THREE.PlaneGeometry(width, len / n + 0.6), MAT.road);
+    seg.rotation.set(-Math.PI / 2, 0, 0);
+    const holder = new THREE.Group();
+    holder.add(seg);
+    holder.position.set(x - mx, terrainHeight(x, z) + 0.22, z - mz);
+    holder.rotation.y = yaw;
+    seg.receiveShadow = true;
+    g.add(holder);
+  }
+  g.position.set(mx, 0, mz);
+  scene.add(g);
+  registerCullable(g, 620 + len / 2);
+  return g;
+}
+
+// ---- 山间石阶：单调爬升的花岗岩踏步 ----
+function makeStoneSteps(x0, z0, x1, z1, width) {
+  const len = Math.hypot(x1 - x0, z1 - z0);
+  const n = Math.max(8, Math.round(len / 1.7));
+  const yaw = Math.atan2(x1 - x0, z1 - z0);
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  const g = new THREE.Group();
+  let prevTop = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const x = lerp(x0, x1, t), z = lerp(z0, z1, t);
+    let top = terrainHeight(x, z) + 0.55;
+    top = Math.max(top, prevTop + 0.06);
+    prevTop = top;
+    const step = box(width, 1.0, 2.0, MAT.stone, 0, 0, 0);
+    step.position.set(x - mx, top - 0.5, z - mz);
+    step.rotation.y = yaw;
+    g.add(step);
+  }
+  g.position.set(mx, 0, mz);
+  scene.add(g);
+  registerCullable(g, 560);
+}
+
+// ---- 理学楼：绿色半球穹顶 + 鼓座 + 柱廊 ----
+function createScienceHall(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  g.add(box(34, 2, 30, MAT.stone, 0, 1, 0));            // 台基
+  const facMat = MAT.facade.clone();
+  facMat.map = TEX.facade.clone();
+  facMat.map.repeat.set(2, 1); facMat.map.needsUpdate = true;
+  patchUnderwater(facMat);
+  g.add(box(26, 11, 22, facMat, 0, 2 + 5.5, 0));        // 主体
+  // 正面柱廊
+  for (let cx = -9; cx <= 9; cx += 4.5) {
+    const col = shadowed(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.58, 9.5, 8), MAT.wall));
+    col.position.set(cx, 2 + 4.75, 12.2);
+    g.add(col);
+  }
+  g.add(box(24, 1.6, 5, MAT.stone, 0, 2 + 9.8, 12.2));  // 门廊檐口
+  // 鼓座 + 标志性绿穹顶
+  const drum = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 4.5, 16), MAT.wall));
+  drum.position.set(0, 13 + 2.25, 0);
+  g.add(drum);
+  const dgeo = new THREE.SphereGeometry(9, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const domeMesh = shadowed(new THREE.Mesh(dgeo, MAT.roof));
+  domeMesh.position.set(0, 17.5, 0);
+  g.add(domeMesh);
+  const finial = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.4, 6), MAT.stone));
+  finial.position.set(0, 27.4, 0);
+  g.add(finial);
+  g.position.set(x, baseY - 0.6, z);
+  scene.add(g);
+  registerCullable(g, 900);
+}
+
+// ---- 六一亭：八角纪念亭（樱花大道西端坡地） ----
+function createPavilion(x, z) {
+  const g = new THREE.Group();
+  const baseY = terrainHeight(x, z);
+  const platform = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(4.4, 4.8, 1, 8), MAT.stone));
+  platform.position.y = 0.5;
+  g.add(platform);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const col = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 3.6, 6), MAT.rust));
+    col.position.set(Math.cos(a) * 3.3, 1 + 1.8, Math.sin(a) * 3.3);
+    g.add(col);
+  }
+  const ring = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(4.1, 4.1, 0.5, 8), MAT.stone));
+  ring.position.y = 5.0;
+  g.add(ring);
+  const roof = shadowed(new THREE.Mesh(new THREE.ConeGeometry(5.2, 3, 8), MAT.roof));
+  roof.position.y = 6.7;
+  g.add(roof);
+  const tip = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6), MAT.stone));
+  tip.position.y = 8.4;
+  g.add(tip);
+  // 亭中石桌
+  const table = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.16, 10), MAT.stoneDark));
+  table.position.y = 1.8;
+  g.add(table);
+  g.position.set(x, baseY - 0.2, z);
+  scene.add(g);
+  registerCullable(g, 620);
+}
+
+// ---- 校园路灯：民国式灯柱，部分倾倒 ----
+function createStreetLamp(x, z, tilt) {
+  const g = new THREE.Group();
+  const h = terrainHeight(x, z);
+  const pole = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 4.6, 6), MAT.rustDark));
+  pole.position.y = 2.3;
+  g.add(pole);
+  const head = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), phongLampGlass));
+  head.position.y = 4.85;
+  g.add(head);
+  const cap = shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.4, 8), MAT.rustDark));
+  cap.position.y = 5.3;
+  g.add(cap);
+  g.position.set(x, h + (tilt ? 0.3 : 0), z);
+  if (tilt) { g.rotation.z = randRange(0.9, 1.35); g.rotation.y = rand() * Math.PI; }
+  scene.add(g);
+  registerCullable(g, 300);
+}
+// 灯罩：微弱余光的磨砂玻璃
+const phongLampGlass = patchUnderwater(new THREE.MeshPhongMaterial({
+  color: 0xbfc9a8, emissive: 0x2a2c14, shininess: 40, transparent: true, opacity: 0.9,
+}));
+
+// ---- 湖滨木栈道：通向东湖的残破步道 ----
+function createBoardwalk(x0, z0, x1, z1) {
+  const g = new THREE.Group();
+  const len = Math.hypot(x1 - x0, z1 - z0);
+  const n = Math.ceil(len / 2.4);
+  const yaw = Math.atan2(x1 - x0, z1 - z0);
+  const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+  for (let i = 0; i < n; i++) {
+    if (rand() < 0.16) continue;                          // 缺失的朽坏板材
+    const t = (i + 0.5) / n;
+    const x = lerp(x0, x1, t), z = lerp(z0, z1, t);
+    const y = Math.max(terrainHeight(x, z) + 0.9, 1.6);
+    const plank = box(3.4, 0.22, 2.1, MAT.rustDark, x - mx, y, z - mz);
+    plank.rotation.y = yaw + randRange(-0.05, 0.05);
+    plank.rotation.z = randRange(-0.05, 0.05);
+    g.add(plank);
+    if (i % 3 === 0) {                                    // 支撑木桩
+      [-1.4, 1.4].forEach(off => {
+        const px = x - mx + Math.cos(yaw) * off, pz = z - mz - Math.sin(yaw) * off;
+        const post = shadowed(new THREE.Mesh(
+          new THREE.CylinderGeometry(0.14, 0.16, y - terrainHeight(x, z) + 1.2, 6), MAT.rustDark));
+        post.position.set(px, y - (y - terrainHeight(x, z) + 1.2) / 2 + 0.1, pz);
+        g.add(post);
+      });
+    }
+  }
+  g.position.set(mx, 0, mz);
+  scene.add(g);
+  registerCullable(g, 520);
+}
+
+// ---- 建筑布局落位 ----
+function buildCampus() {
+  createPaiFang(140, 230);                 // 牌坊（南门，断裂）
+  createLaoZhaiShe(-150, -52);             // 老斋舍 + 樱顶 + 百步梯
+  createOldLibrary(-150, -142);            // 老图书馆（珞珈山顶）
+  createAdminBuilding(140, 18);            // 行政主楼
+  createScienceHall(10, 120);              // 理学楼（绿穹顶）
+  createFengYuan(272, -62);                // 枫园湖滨教学楼（废墟）
+  createPavilion(-262, -52);               // 六一亭
+  makeRoad(-300, -22, 12, -22, 9);         // 樱花大道
+  makeRoad(140, 258, 140, 44, 10);         // 梧桐林荫道（牌坊 -> 行政楼）
+  makeRoad(140, 44, 20, -18, 8);           // 连接路（行政楼 -> 樱花大道）
+  makeRoad(148, 40, 268, -48, 8);          // 湖滨路（行政楼 -> 枫园）
+  makeRoad(30, 116, 10, -14, 7);           // 理学楼支路
+  makeStoneSteps(-150, -96, -150, -126, 6);// 山间石阶（樱顶 -> 老图书馆）
+  createBoardwalk(300, -52, 368, -34);     // 湖滨残破木栈道（伸入东湖）
+  // 路灯：沿樱花大道与梧桐林荫道，两盏倾倒
+  for (let x = -270; x <= -30; x += 60) createStreetLamp(x, -36, false);
+  for (let z = 220; z >= 80; z -= 55) createStreetLamp(126, z, false);
+  createStreetLamp(-120, -8, true);
+  createStreetLamp(158, 160, true);
+}
+
+/* ================= 09 植被（Instanced + 远山简化） ====================== */
+// 噪声扰动的不规则树冠：打破完美球形，轮廓更接近真实树木
+function makeBlobGeo(seed, squash) {
+  const g = new THREE.SphereGeometry(1, 12, 9);
+  const pos = g.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    const n = fbm(v.x * 1.4 + seed, v.z * 1.4 + v.y * 0.9 + seed * 2.7, 3);
+    const r = 1 + (n - 0.5) * 0.72;
+    v.multiplyScalar(r);
+    pos.setXYZ(i, v.x, v.y * squash, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+// 松柏：锥形轮廓加噪声锯齿，模拟层叠枝片
+function makePineGeo() {
+  const g = new THREE.ConeGeometry(2.3, 8.5, 9, 4);
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const rr = Math.hypot(x, z);
+    if (rr < 0.05) continue;
+    const n = 1 + (fbm(Math.atan2(z, x) * 2.2, y * 0.8, 3) - 0.5) * 0.5;
+    pos.setX(i, x * n); pos.setZ(i, z * n);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+function buildVegetation() {
+  const dummy = new THREE.Object3D();
+  const trunkGeo = new THREE.CylinderGeometry(0.26, 0.44, 4.2, 7);
+
+  // -- 收集树位置 --
+  const cherry = [], plane = [];
+  // 樱花大道两侧行道樱花
+  for (let x = -292; x <= 4; x += 13) {
+    [-31, -13].forEach(zz => {
+      const jx = x + randRange(-2, 2), jz = zz + randRange(-1.5, 1.5);
+      cherry.push([jx, jz]);
+    });
+  }
+  // 老斋舍前坡地散生樱花
+  for (let i = 0; i < 26; i++) {
+    cherry.push([randRange(-210, -80), randRange(-10, 30)]);
+  }
+  // 梧桐林荫道两侧
+  for (let z = 244; z >= 62; z -= 16) {
+    [130, 150].forEach(xx => plane.push([xx + randRange(-1.5, 1.5), z + randRange(-2, 2)]));
+  }
+  // 行政楼周边梧桐
+  for (let i = 0; i < 14; i++) plane.push([randRange(90, 200), randRange(-20, 90)]);
+
+  const trees = cherry.length + plane.length;
+  const trunkInst = new THREE.InstancedMesh(trunkGeo, MAT.bark, trees);
+  const cherryInst = new THREE.InstancedMesh(makeBlobGeo(3.7, 0.82), MAT.leafCherry, cherry.length * 2);
+  const planeInst = new THREE.InstancedMesh(makeBlobGeo(9.2, 0.9), MAT.leafPlane, plane.length * 2);
+  let ti = 0, ci = 0, pi = 0;
+  function placeTree(x, z, inst, idxGet) {
+    const h = terrainHeight(x, z);
+    const s = randRange(0.85, 1.3);
+    dummy.rotation.set(0, rand() * Math.PI, randRange(-0.06, 0.06));
+    dummy.position.set(x, h + 2.1 * s, z);
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    trunkInst.setMatrixAt(ti++, dummy.matrix);
+    // 双球冠层：主冠 + 偏置侧冠，轮廓更自然
+    dummy.rotation.set(0, 0, 0);
+    dummy.position.set(x, h + 4.9 * s, z);
+    dummy.scale.set(2.7 * s, 2.2 * s, 2.7 * s);
+    dummy.updateMatrix();
+    inst.setMatrixAt(idxGet(), dummy.matrix);
+    dummy.position.set(x + randRange(-1.4, 1.4), h + 5.7 * s, z + randRange(-1.4, 1.4));
+    dummy.scale.set(1.9 * s, 1.6 * s, 1.9 * s);
+    dummy.updateMatrix();
+    inst.setMatrixAt(idxGet(), dummy.matrix);
+  }
+  cherry.forEach(p => placeTree(p[0], p[1], cherryInst, () => ci++));
+  plane.forEach(p => placeTree(p[0], p[1], planeInst, () => pi++));
+  [trunkInst, cherryInst, planeInst].forEach(m => {
+    m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  });
+
+  // -- 远山松柏：简化单体渲染（单次绘制，视锥剔除自动生效） --
+  const pineGeo = makePineGeo();
+  const pinePts = [];
+  let tries = 0;
+  while (pinePts.length < 300 && tries++ < 3000) {
+    const x = randRange(-420, 140), z = randRange(-380, 120);
+    const h = terrainHeight(x, z);
+    if (h < 24 || h > 70) continue;                        // 只长在山腰以上
+    if (Math.abs(x + 150) < 42 && z > -160 && z < -30) continue; // 避开老斋舍/图书馆轴线
+    pinePts.push([x, z, h]);
+  }
+  const pineInst = new THREE.InstancedMesh(pineGeo, MAT.leafPine, pinePts.length);
+  pinePts.forEach((p, i) => {
+    const s = randRange(0.7, 1.7);
+    dummy.position.set(p[0], p[2] + 3.6 * s, p[1]);
+    dummy.rotation.set(0, rand() * Math.PI, 0);
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    pineInst.setMatrixAt(i, dummy.matrix);
+  });
+  pineInst.castShadow = true; pineInst.receiveShadow = true;
+  scene.add(pineInst);
+}
+
+/* ============= 10 水底细节（长椅/自行车/书本/水草等） =================== */
+function createBench(x, z, rotY) {
+  const g = new THREE.Group();
+  const h = terrainHeight(x, z);
+  g.add(box(2.6, 0.2, 0.6, MAT.stone, 0, 0.62, 0));
+  g.add(box(0.4, 0.55, 0.5, MAT.stoneDark, -0.9, 0.28, 0));
+  g.add(box(0.4, 0.55, 0.5, MAT.stoneDark, 0.9, 0.28, 0));
+  g.position.set(x, h + 0.1, z);
+  g.rotation.y = rotY;
+  scene.add(g);
+  registerCullable(g, 260);
+}
+function createBicycle(x, z, rotY, fallen) {
+  const g = new THREE.Group();
+  const h = terrainHeight(x, z);
+  const wheelGeo = new THREE.TorusGeometry(0.55, 0.05, 6, 14);
+  [-0.95, 0.95].forEach(wx => {
+    const w = shadowed(new THREE.Mesh(wheelGeo, MAT.rustDark));
+    w.position.set(wx, 0.55, 0);
+    g.add(w);
+  });
+  const bar1 = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.5, 6), MAT.rust));
+  bar1.rotation.z = Math.PI / 2 - 0.35;
+  bar1.position.set(0, 0.85, 0);
+  g.add(bar1);
+  const bar2 = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.1, 6), MAT.rust));
+  bar2.rotation.z = 0.5;
+  bar2.position.set(-0.6, 0.9, 0);
+  g.add(bar2);
+  const handle = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.7, 6), MAT.rust));
+  handle.rotation.x = Math.PI / 2;
+  handle.position.set(0.9, 1.25, 0);
+  g.add(handle);
+  g.add(box(0.4, 0.1, 0.25, MAT.rustDark, -0.75, 1.28, 0));   // 车座
+  g.position.set(x, h + (fallen ? 0.35 : 0.05), z);
+  g.rotation.y = rotY;
+  if (fallen) g.rotation.z = Math.PI / 2 - 0.18;              // 倒伏在地
+  scene.add(g);
+  registerCullable(g, 240);
+}
+function scatterBooks() {
+  const geo = new THREE.BoxGeometry(0.52, 0.08, 0.36);
+  const mats = [MAT.bookA, MAT.bookB, MAT.bookC];
+  // 书本集中散落在枫园废墟与图书馆石阶附近
+  const spots = [[272, -55, 16, 22], [-150, -110, 10, 10], [136, 220, 8, 6]];
+  spots.forEach(sp => {
+    for (let i = 0; i < sp[3]; i++) {
+      const x = sp[0] + randRange(-sp[2], sp[2]);
+      const z = sp[1] + randRange(-sp[2], sp[2]);
+      const m = shadowed(new THREE.Mesh(geo, mats[Math.floor(rand() * 3)]));
+      m.position.set(x, terrainHeight(x, z) + 0.15, z);
+      m.rotation.set(randRange(-0.2, 0.2), rand() * Math.PI * 2, randRange(-0.2, 0.2));
+      scene.add(m);
+      registerCullable(m, 180);
+    }
+  });
+}
+function scatterLeafPiles() {
+  const geo = new THREE.CircleGeometry(1.25, 10);
+  geo.rotateX(-Math.PI / 2);
+  const inst = new THREE.InstancedMesh(geo, MAT.leafPile, 46);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < 46; i++) {
+    // 沿樱花大道与低洼处堆积
+    const nearRoad = i < 26;
+    const x = nearRoad ? randRange(-290, 10) : randRange(-100, 320);
+    const z = nearRoad ? randRange(-36, -8) : randRange(-120, 240);
+    dummy.position.set(x, terrainHeight(x, z) + 0.08, z);
+    dummy.rotation.y = rand() * Math.PI;
+    dummy.scale.set(randRange(0.7, 2.4), 1, randRange(0.7, 2.4));
+    dummy.updateMatrix();
+    inst.setMatrixAt(i, dummy.matrix);
+  }
+  inst.receiveShadow = true;
+  scene.add(inst);
+}
+function scatterBoulders() {
+  const geo = new THREE.DodecahedronGeometry(1, 0);
+  const inst = new THREE.InstancedMesh(geo, MAT.stoneDark, 70);
+  const dummy = new THREE.Object3D();
+  let placed = 0, tries = 0;
+  while (placed < 70 && tries++ < 1200) {
+    const x = randRange(-460, 380), z = randRange(-400, 340);
+    const h = terrainHeight(x, z);
+    if (h > 6 && h < 18 && rand() < 0.5) continue;  // 多分布于山坡与湖床
+    dummy.position.set(x, h + 0.4, z);
+    dummy.rotation.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI);
+    dummy.scale.setScalar(randRange(0.8, 3.6));
+    dummy.updateMatrix();
+    inst.setMatrixAt(placed++, dummy.matrix);
+  }
+  inst.castShadow = true; inst.receiveShadow = true;
+  scene.add(inst);
+}
+function plantSeaweed() {
+  const geo = new THREE.PlaneGeometry(0.9, 5, 1, 6);
+  geo.translate(0, 2.5, 0);
+  const inst = new THREE.InstancedMesh(geo, MAT.seaweed, 300);
+  const dummy = new THREE.Object3D();
+  let placed = 0, tries = 0;
+  while (placed < 300 && tries++ < 4000) {
+    const x = randRange(-380, 480), z = randRange(-360, 340);
+    const h = terrainHeight(x, z);
+    if (h > 26) continue;  // 水草生长在低处（湖床与近岸）
+    dummy.position.set(x, h, z);
+    dummy.rotation.y = rand() * Math.PI;
+    const s = randRange(0.5, 1.6);
+    dummy.scale.set(s, s, s);
+    dummy.updateMatrix();
+    inst.setMatrixAt(placed++, dummy.matrix);
+  }
+  inst.receiveShadow = true;
+  scene.add(inst);
+}
+function buildDetails() {
+  // 石凳沿樱花大道与林荫道分布
+  createBench(-220, -8, 0.1);
+  createBench(-140, -8, -0.1);
+  createBench(-60, -8, 0.05);
+  createBench(124, 180, Math.PI / 2);
+  createBench(156, 130, -Math.PI / 2);
+  createBench(124, 90, Math.PI / 2);
+  // 老旧自行车：两辆倒伏，一辆斜停
+  createBicycle(-100, -16, 0.4, true);
+  createBicycle(254, -46, 2.2, true);
+  createBicycle(146, 60, -0.5, false);
+  scatterBooks();
+  scatterLeafPiles();
+  scatterBoulders();
+  plantSeaweed();
+}
+
+/* ============== 11 粒子系统（浮游生物 / 漂浮碎屑） ====================== */
+function createPlankton() {
+  const N = 900;
+  const pos = new Float32Array(N * 3);
+  const seed = new Float32Array(N);
+  const size = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = randRange(-420, 460), z = randRange(-380, 380);
+    const hMin = Math.max(terrainHeight(x, z) + 2, 0);
+    pos[i * 3] = x;
+    pos[i * 3 + 1] = randRange(hMin, CONFIG.waterLevel - 4);
+    pos[i * 3 + 2] = z;
+    seed[i] = rand();
+    size[i] = randRange(1.2, 3.4);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: UW.time },
+    transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: `
+      attribute float aSeed;
+      attribute float aSize;
+      uniform float uTime;
+      varying float vA;
+      void main() {
+        vec3 p = position;
+        p.x += sin(uTime * 0.24 + aSeed * 17.0) * 3.2;
+        p.y += sin(uTime * 0.17 + aSeed * 29.0) * 2.2;
+        p.z += cos(uTime * 0.21 + aSeed * 23.0) * 3.2;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_PointSize = aSize * (150.0 / max(-mv.z, 1.0));
+        vA = 0.45 + 0.55 * sin(uTime * (0.7 + aSeed) + aSeed * 40.0);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vA;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.05, d) * vA;
+        gl_FragColor = vec4(vec3(0.36, 0.92, 0.80) * a, a);
+      }
+    `,
+  });
+  scene.add(new THREE.Points(geo, mat));
+}
+// 缓慢下沉再循环的落叶 / 水草碎屑
+function createDrifters() {
+  const N = 340;
+  const pos = new Float32Array(N * 3);
+  const seed = new Float32Array(N);
+  const col = new Float32Array(N * 3);
+  const palette = [[0.55, 0.36, 0.16], [0.72, 0.5, 0.55], [0.3, 0.55, 0.3], [0.5, 0.42, 0.2]];
+  for (let i = 0; i < N; i++) {
+    pos[i * 3] = randRange(-360, 400);
+    pos[i * 3 + 1] = randRange(30, CONFIG.waterLevel - 2);
+    pos[i * 3 + 2] = randRange(-340, 340);
+    seed[i] = rand();
+    const c = palette[Math.floor(rand() * palette.length)];
+    col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: UW.time },
+    transparent: true, depthWrite: false,
+    vertexShader: `
+      attribute float aSeed;
+      attribute vec3 aColor;
+      uniform float uTime;
+      varying vec3 vC;
+      varying float vA;
+      void main() {
+        vec3 p = position;
+        float speed = 0.006 + fract(aSeed * 7.0) * 0.008;
+        float f = fract(aSeed + uTime * speed);
+        p.y -= f * 60.0;                          // 缓慢下沉，循环回落
+        p.x += sin(uTime * 0.32 + aSeed * 50.0) * 2.6;
+        p.z += cos(uTime * 0.27 + aSeed * 33.0) * 2.6;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_PointSize = (2.2 + 2.6 * fract(aSeed * 13.0)) * (150.0 / max(-mv.z, 1.0));
+        vC = aColor;
+        vA = smoothstep(0.0, 0.08, f) * smoothstep(1.0, 0.85, f) * 0.85;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vC;
+      varying float vA;
+      void main() {
+        vec2 q = gl_PointCoord - 0.5;
+        float d = abs(q.x) + abs(q.y) * 1.6;      // 菱形叶片剪影
+        float a = smoothstep(0.5, 0.28, d) * vA;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(vC * 0.55, a);
+      }
+    `,
+  });
+  scene.add(new THREE.Points(geo, mat));
+}
+
+/* ============ 12 第一人称水下漫游控制器 ================================ */
+class SwimControls {
+  constructor(cam, dom) {
+    this.cam = cam;
+    this.yaw = 0.62;
+    this.pitch = -0.06;
+    this.speed = 26;
+    this.velocity = new THREE.Vector3();
+    this.keys = {};
+    this.dragging = false;
+    this.lastX = 0; this.lastY = 0;
+
+    dom.addEventListener('mousedown', e => {
+      this.dragging = true;
+      this.lastX = e.clientX; this.lastY = e.clientY;
+      dom.classList.add('dragging');
+    });
+    window.addEventListener('mouseup', () => {
+      this.dragging = false;
+      dom.classList.remove('dragging');
+    });
+    window.addEventListener('mousemove', e => {
+      if (!this.dragging) return;
+      this.yaw -= (e.clientX - this.lastX) * 0.0032;
+      this.pitch -= (e.clientY - this.lastY) * 0.0032;
+      this.pitch = clamp(this.pitch, -1.5, 1.5);
+      this.lastX = e.clientX; this.lastY = e.clientY;
+    });
+    window.addEventListener('wheel', e => {
+      this.speed = clamp(this.speed * (e.deltaY < 0 ? 1.12 : 0.9), 6, 110);
+    }, { passive: true });
+    window.addEventListener('keydown', e => {
+      this.keys[e.code] = true;
+      if (e.code === 'Space') e.preventDefault();
+    });
+    window.addEventListener('keyup', e => { this.keys[e.code] = false; });
+  }
+  update(dt) {
+    const k = this.keys;
+    const cosP = Math.cos(this.pitch);
+    // 前进方向沿视线（水下游动），侧移保持水平
+    const fwd = new THREE.Vector3(-Math.sin(this.yaw) * cosP, Math.sin(this.pitch), -Math.cos(this.yaw) * cosP);
+    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const move = new THREE.Vector3();
+    if (k['KeyW'] || k['ArrowUp']) move.add(fwd);
+    if (k['KeyS'] || k['ArrowDown']) move.sub(fwd);
+    if (k['KeyD'] || k['ArrowRight']) move.add(right);
+    if (k['KeyA'] || k['ArrowLeft']) move.sub(right);
+    if (k['Space']) move.y += 0.9;                          // 空格上浮
+    if (k['ShiftLeft'] || k['ShiftRight']) move.y -= 1.7;   // Shift 快速下潜
+    if (move.lengthSq() > 0) move.normalize().multiplyScalar(this.speed);
+    // 水中惯性：速度平滑趋近目标
+    this.velocity.lerp(move, 1 - Math.pow(0.0012, dt));
+    this.cam.position.addScaledVector(this.velocity, dt);
+    // 碰撞约束：不穿地形、不浮出湖面、不游出边界
+    const p = this.cam.position;
+    p.x = clamp(p.x, -660, 660);
+    p.z = clamp(p.z, -660, 660);
+    const floor = terrainHeight(p.x, p.z) + 2.2;
+    if (p.y < floor) { p.y = floor; this.velocity.y = Math.max(this.velocity.y, 0); }
+    const ceil = CONFIG.waterLevel - 2.5;
+    if (p.y > ceil) { p.y = ceil; this.velocity.y = Math.min(this.velocity.y, 0); }
+    this.cam.rotation.set(this.pitch, this.yaw, 0);
+  }
+}
+
+/* ============ 13 距离剔除优化 + 主循环 ================================= */
+// 手动距离剔除（配合 Three.js 自动视锥剔除）：远处对象整组隐藏
+const cullables = [];
+function registerCullable(obj, dist) {
+  cullables.push({ obj: obj, dist2: dist * dist });
+}
+let cullTick = 0;
+function updateCulling() {
+  if (++cullTick % CONFIG.cullInterval !== 0) return;
+  const cp = camera.position;
+  for (let i = 0; i < cullables.length; i++) {
+    const c = cullables[i];
+    const p = c.obj.position;
+    const dx = p.x - cp.x, dz = p.z - cp.z;
+    c.obj.visible = (dx * dx + dz * dz) < c.dist2;
+  }
+}
+
+// ---- 场景组装 ----
+buildCampus();
+buildRubbleInstanced();
+buildVegetation();
+buildDetails();
+createPlankton();
+createDrifters();
+const controls = new SwimControls(camera, container);
+
+// ---- HUD ----
+const uiDepth = document.getElementById('uiDepth');
+const uiSpeed = document.getElementById('uiSpeed');
+const uiFps = document.getElementById('uiFps');
+let fpsFrames = 0, fpsLast = performance.now();
+
+// ---- 主循环 ----
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  UW.time.value = t;
+
+  // 太阳缓慢晃动，带动水底光影摆动
+  sunLight.position.set(
+    150 + Math.sin(t * 0.05) * 36,
+    300,
+    90 + Math.cos(t * 0.043) * 36);
+  waterUniforms.uSunPos.value.set(sunLight.position.x, 420, sunLight.position.z);
+
+  controls.update(dt);
+  updateCulling();
+  dome.position.copy(camera.position);   // 水穹始终包裹相机
+
+  renderer.render(scene, camera);
+
+  // HUD 刷新
+  fpsFrames++;
+  const now = performance.now();
+  if (now - fpsLast > 500) {
+    uiFps.textContent = Math.round(fpsFrames * 1000 / (now - fpsLast));
+    fpsFrames = 0; fpsLast = now;
+    uiDepth.textContent = (CONFIG.waterLevel - camera.position.y).toFixed(1);
+    uiSpeed.textContent = Math.round(controls.speed);
+  }
+}
+animate();
+
+// ---- 自适应窗口 ----
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
