@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "noticeZh": "本文件只登记可追溯来源。搜索结果缩略图、无作者照片、来源不明模型和未经授权的官方视觉资产不得直接进入正式资产管线。",
+  "noticeEn": "Only traceable sources belong in this registry. Search-result thumbnails, unattributed photographs, unknown-origin models, and unauthorized official visual assets must not enter the production asset pipeline.",
+  "requiredFields": [
+    "id",
+    "title",
+    "sourceType",
+    "publisherOrAuthor",
+    "urlOrArchiveReference",
+    "accessedAt",
+    "targetPlaceIds",
+    "usagePurpose",
+    "licenseOrPermission",
+    "verificationNotes"
+  ],
+  "acceptedSourceTypes": [
+    "official-map",
+    "official-publication",
+    "historic-plan",
+    "historic-photograph",
+    "field-photograph",
+    "satellite-or-aerial-reference",
+    "academic-publication",
+    "measurement-note",
+    "licensed-3d-asset",
+    "project-created-texture"
+  ],
+  "records": []
+}
