@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { CampusDataset, CampusPlace } from '../data/types';
+import { CampusGeoDataLayer } from '../geodata/CampusGeoDataLayer';
+import type { CampusGeoFeatureCollection } from '../geodata/types';
 import type { CampusCoverageDataset } from '../world/coverageTypes';
 import { sampleTerrainHeight } from '../world/terrain';
 import { WholeCampusWorld } from '../world/WholeCampusWorld';
@@ -17,6 +19,18 @@ const CATEGORY_COLORS: Record<CampusPlace['category'], number> = {
   facility: 0x8a8275,
 };
 
+function setObjectHighlighted(object: THREE.Object3D | undefined, highlighted: boolean): void {
+  object?.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      material.emissive.setHex(highlighted ? 0x173c36 : 0x000000);
+      material.emissiveIntensity = highlighted ? 0.9 : 0;
+    }
+  });
+}
+
 export class CampusViewer {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
@@ -24,7 +38,8 @@ export class CampusViewer {
   private readonly controls: OrbitControls;
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
-  private readonly meshes = new Map<string, THREE.Mesh>();
+  private readonly placeObjects = new Map<string, THREE.Object3D>();
+  private readonly interactiveObjects: THREE.Object3D[] = [];
   private readonly resizeObserver: ResizeObserver;
   private animationFrame = 0;
   private selectedId: string | null = null;
@@ -34,6 +49,7 @@ export class CampusViewer {
     private readonly dataset: CampusDataset,
     private readonly layout: WholeCampusLayout,
     coverage: CampusCoverageDataset,
+    geoData: CampusGeoFeatureCollection,
     private readonly onSelect: (place: CampusPlace) => void,
   ) {
     this.scene.background = new THREE.Color(0x041820);
@@ -65,7 +81,12 @@ export class CampusViewer {
 
     const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
     new WholeCampusWorld(this.scene, layout, dataset, coverage, debugZones);
-    this.addPlaces();
+    const geoLayer = new CampusGeoDataLayer(this.scene, layout, geoData);
+    for (const [placeId, object] of geoLayer.placeObjects) {
+      this.placeObjects.set(placeId, object);
+    }
+    this.interactiveObjects.push(...geoLayer.clickableObjects);
+    this.addFallbackPlaces(geoLayer.representedPlaceIds);
 
     this.renderer.domElement.addEventListener('click', this.handleClick);
     this.resizeObserver = new ResizeObserver(() => this.resize());
@@ -76,26 +97,19 @@ export class CampusViewer {
 
   focusPlace(placeId: string): void {
     const place = this.dataset.places.find((item) => item.id === placeId);
-    const mesh = this.meshes.get(placeId);
-    if (!place || !mesh) return;
+    const object = this.placeObjects.get(placeId);
+    if (!place || !object) return;
 
     if (this.selectedId) {
-      const previous = this.meshes.get(this.selectedId);
-      const material = previous?.material;
-      if (material instanceof THREE.MeshStandardMaterial) {
-        material.emissive.setHex(0x000000);
-      }
+      setObjectHighlighted(this.placeObjects.get(this.selectedId), false);
     }
-
-    const material = mesh.material;
-    if (material instanceof THREE.MeshStandardMaterial) {
-      material.emissive.setHex(0x173c36);
-      material.emissiveIntensity = 0.9;
-    }
-
+    setObjectHighlighted(object, true);
     this.selectedId = placeId;
-    const target = mesh.position.clone();
-    const extent = Math.max(place.dimensions.width, place.dimensions.depth, place.dimensions.height, 20);
+
+    const bounds = new THREE.Box3().setFromObject(object);
+    const target = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+    const extent = Math.max(size.x, size.y, size.z, place.dimensions.width, 20);
     this.controls.target.copy(target);
     this.camera.position.set(target.x + extent * 1.8, target.y + extent * 1.35, target.z + extent * 1.8);
     this.controls.update();
@@ -117,13 +131,15 @@ export class CampusViewer {
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
-    const intersections = this.raycaster.intersectObjects([...this.meshes.values()], false);
-    const placeId = intersections[0]?.object.userData.placeId as string | undefined;
+    const intersections = this.raycaster.intersectObjects(this.interactiveObjects, false);
+    const placeId = intersections[0]?.object.userData.placeId as string | null | undefined;
     if (placeId) this.focusPlace(placeId);
   };
 
-  private addPlaces(): void {
+  private addFallbackPlaces(representedPlaceIds: ReadonlySet<string>): void {
     for (const place of this.dataset.places) {
+      if (representedPlaceIds.has(place.id)) continue;
+
       const height = Math.max(place.dimensions.height, 0.4);
       const geometry = new THREE.BoxGeometry(place.dimensions.width, height, place.dimensions.depth);
       const material = new THREE.MeshStandardMaterial({
@@ -145,7 +161,8 @@ export class CampusViewer {
       mesh.receiveShadow = true;
       mesh.userData.placeId = place.id;
       mesh.name = place.nameZh;
-      this.meshes.set(place.id, mesh);
+      this.placeObjects.set(place.id, mesh);
+      this.interactiveObjects.push(mesh);
       this.scene.add(mesh);
     }
   }
