@@ -33,7 +33,7 @@ function isClosed(ring) {
 }
 
 const [world, campus, assets, coverage, geoData, sources] = await Promise.all([
-  readJson('public/data/whole-campus.layout.json'),
+  readJson('public/data/world.layout.json'),
   readJson('public/data/campus.masterplan.json'),
   readJson('public/data/assets.registry.json'),
   readJson('public/data/campus.coverage.json'),
