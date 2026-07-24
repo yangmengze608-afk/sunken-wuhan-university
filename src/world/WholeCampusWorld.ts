@@ -1,48 +1,27 @@
 import * as THREE from 'three';
 import type { CampusDataset } from '../data/types';
+import { addCampusCoverageBlockout } from './CampusCoverageBlockout';
+import type { CampusCoverageDataset } from './coverageTypes';
+import { sampleTerrainHeight } from './terrain';
 import type { WholeCampusLayout, WorldRoad } from './types';
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function smoothstep(value: number): number {
-  const t = clamp01(value);
-  return t * t * (3 - 2 * t);
-}
-
-export function sampleTerrainHeight(layout: WholeCampusLayout, x: number, z: number): number {
-  let height = layout.terrain.baseElevation;
-
-  for (const hill of layout.terrain.hills) {
-    const nx = (x - hill.center.x) / hill.radiusX;
-    const nz = (z - hill.center.z) / hill.radiusZ;
-    height += hill.height * Math.exp(-2.35 * (nx * nx + nz * nz));
-  }
-
-  const shorelineStart = layout.shoreline.eastBoundaryX - layout.shoreline.transitionWidth;
-  const shorelineProgress = smoothstep(
-    (x - shorelineStart) / Math.max(layout.shoreline.transitionWidth, 1),
-  );
-  height -= shorelineProgress * 28;
-
-  return height;
-}
 
 export class WholeCampusWorld {
   constructor(
     scene: THREE.Scene,
     layout: WholeCampusLayout,
     dataset: CampusDataset,
+    coverage: CampusCoverageDataset,
     debugZones: boolean,
   ) {
     this.addLighting(scene);
     this.addTerrain(scene, layout);
+    addCampusCoverageBlockout(scene, layout, coverage);
     this.addRoadNetwork(scene, layout);
     this.addEastLake(scene, layout);
 
     if (debugZones) {
       this.addDebugZones(scene, dataset);
+      this.addCoverageBoundaries(scene, layout, coverage);
       this.addWorldBoundary(scene, layout);
     }
   }
@@ -182,6 +161,32 @@ export class WholeCampusWorld {
         new THREE.LineBasicMaterial({ color: 0x65c8b3, transparent: true, opacity: 0.32 }),
       );
       line.position.set(zone.center.x, zone.center.y + 1, zone.center.z);
+      group.add(line);
+    }
+
+    scene.add(group);
+  }
+
+  private addCoverageBoundaries(
+    scene: THREE.Scene,
+    layout: WholeCampusLayout,
+    coverage: CampusCoverageDataset,
+  ): void {
+    const group = new THREE.Group();
+    group.name = 'CoverageAreasDebug';
+
+    for (const area of coverage.areas) {
+      const geometry = new THREE.BoxGeometry(area.size.width, 1, area.size.depth);
+      const edges = new THREE.EdgesGeometry(geometry);
+      const line = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0xc9aa68, transparent: true, opacity: 0.24 }),
+      );
+      line.position.set(
+        area.center.x,
+        sampleTerrainHeight(layout, area.center.x, area.center.z) + 0.8,
+        area.center.z,
+      );
       group.add(line);
     }
 
