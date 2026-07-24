@@ -5,7 +5,7 @@ import { loadSourceRegistry } from './data/sourceRegistry';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { loadCampusGeoData } from './geodata/loadCampusGeoData';
 import type { CampusGeoFeatureCollection } from './geodata/types';
-import { CampusViewer } from './viewer/CampusViewer';
+import { CampusViewer, type ViewMode } from './viewer/CampusViewer';
 import { loadCampusCoverage } from './world/loadCampusCoverage';
 import { loadWorldLayout } from './world/loadWorldLayout';
 import type { WholeCampusLayout } from './world/types';
@@ -50,6 +50,13 @@ const viewport = requireElement<HTMLElement>('#viewport');
 const status = requireElement<HTMLElement>('#dataset-status');
 const placeList = requireElement<HTMLElement>('#place-list');
 const detail = requireElement<HTMLElement>('#place-detail');
+const firstPersonButton = requireElement<HTMLButtonElement>('#mode-first-person');
+const overviewButton = requireElement<HTMLButtonElement>('#mode-overview');
+const catalogToggle = requireElement<HTMLButtonElement>('#catalog-toggle');
+const catalogClose = requireElement<HTMLButtonElement>('#catalog-close');
+const speedValue = requireElement<HTMLElement>('#ui-speed');
+const clearanceValue = requireElement<HTMLElement>('#ui-clearance');
+const positionValue = requireElement<HTMLElement>('#ui-position');
 
 const accuracyLabels: Record<AccuracyLevel, string> = {
   placeholder: '工程占位',
@@ -71,6 +78,21 @@ const sourceLabels: Record<SourceStatus, string> = {
   'partially-verified': '部分核验',
   verified: '资料已核验',
 };
+
+function setCatalogOpen(open: boolean): void {
+  document.body.classList.toggle('catalog-open', open);
+  document.body.classList.toggle('catalog-closed', !open);
+  catalogToggle.setAttribute('aria-expanded', String(open));
+}
+
+function applyViewMode(mode: ViewMode): void {
+  const firstPerson = mode === 'first-person';
+  document.body.classList.toggle('mode-first-person', firstPerson);
+  document.body.classList.toggle('mode-overview', !firstPerson);
+  firstPersonButton.setAttribute('aria-pressed', String(firstPerson));
+  overviewButton.setAttribute('aria-pressed', String(!firstPerson));
+  setCatalogOpen(!firstPerson);
+}
 
 function renderDetail(place: CampusPlace): void {
   detail.innerHTML = `
@@ -138,11 +160,37 @@ async function start(): Promise<void> {
     }
     validateGeoBounds(geoData, worldLayout);
 
-    const viewer = new CampusViewer(viewport, dataset, worldLayout, coverage, geoData, (place) => {
-      renderDetail(place);
-      for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
-        button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
-      }
+    const viewer = new CampusViewer(
+      viewport,
+      dataset,
+      worldLayout,
+      coverage,
+      geoData,
+      (place) => {
+        renderDetail(place);
+        for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
+          button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
+        }
+      },
+      applyViewMode,
+      (telemetry) => {
+        speedValue.textContent = Math.round(telemetry.speed).toString();
+        clearanceValue.textContent = telemetry.terrainClearance.toFixed(1);
+        positionValue.textContent = `${Math.round(telemetry.x)}, ${Math.round(telemetry.z)}`;
+      },
+    );
+
+    firstPersonButton.addEventListener('click', () => viewer.setMode('first-person'));
+    overviewButton.addEventListener('click', () => viewer.setMode('overview'));
+    catalogToggle.addEventListener('click', () => {
+      setCatalogOpen(document.body.classList.contains('catalog-closed'));
+    });
+    catalogClose.addEventListener('click', () => setCatalogOpen(false));
+    window.addEventListener('keydown', (event) => {
+      if (event.code !== 'KeyM' || event.repeat) return;
+      const target = event.target;
+      if (target instanceof HTMLButtonElement || target instanceof HTMLInputElement) return;
+      viewer.toggleMode();
     });
 
     const orderedPlaces = [...dataset.places].sort((a, b) => a.priority - b.priority);
@@ -157,7 +205,10 @@ async function start(): Promise<void> {
         <small>${place.nameEn} · ${reconstructionLabels[place.reconstructionStatus]}</small>
         <span class="priority">P${place.priority}</span>
       `;
-      button.addEventListener('click', () => viewer.focusPlace(place.id));
+      button.addEventListener('click', () => {
+        viewer.focusPlace(place.id);
+        if (viewer.getMode() === 'first-person') setCatalogOpen(false);
+      });
       placeList.appendChild(button);
     }
 
@@ -166,13 +217,13 @@ async function start(): Promise<void> {
     const blockoutCount = coverage.areas.reduce((total, area) => total + area.blockCount, 0);
     const polygonCount = geoData.features.filter((feature) => feature.geometry.type === 'Polygon').length;
     const routeCount = geoData.features.filter((feature) => feature.geometry.type === 'LineString').length;
-    status.textContent = `连续校园 ${worldWidth}×${worldDepth}m · ${blockoutCount} 个背景粗模 · ${polygonCount} 个矢量场地/建筑轮廓 · ${routeCount} 条矢量路线`;
+    status.textContent = `第一人称连续校园 ${worldWidth}×${worldDepth}m · ${blockoutCount} 个背景粗模 · ${polygonCount} 个矢量轮廓 · ${routeCount} 条路线`;
     detail.innerHTML = `
-      <p class="detail-kicker">GEODATA PIPELINE ACTIVE</p>
+      <p class="detail-kicker">FIRST-PERSON MODE RESTORED</p>
       <h2>${worldLayout.nameZh}</h2>
       <h3>${worldLayout.nameEn}</h3>
-      <p>重点建筑、操场、道路、台阶和岸线引导已经进入统一 GeoJSON 图层。页面会按多边形和折线渲染，而不是只能依赖中心点方盒。</p>
-      <p>当前矢量要素仍为项目自制工程占位，未嵌入武汉大学官方地图或 OSM 几何。每个要素都必须绑定来源 ID，未来可逐项替换为核验后的真实轮廓。</p>
+      <p>第一人称水下游览重新成为默认主模式。WASD 游动、空格上浮、Shift 下潜、鼠标拖动观察、滚轮调速。</p>
+      <p>校园总览只用于辅助定位；所有地点仍处于同一张连续武汉大学地图中。</p>
     `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
