@@ -3,7 +3,7 @@ import type { CampusDataset } from '../data/types';
 import { addCampusCoverageBlockout } from './CampusCoverageBlockout';
 import type { CampusCoverageDataset } from './coverageTypes';
 import { sampleTerrainHeight } from './terrain';
-import type { WholeCampusLayout, WorldRoad } from './types';
+import type { WholeCampusLayout } from './types';
 
 export class WholeCampusWorld {
   constructor(
@@ -16,7 +16,6 @@ export class WholeCampusWorld {
     this.addLighting(scene);
     this.addTerrain(scene, layout);
     addCampusCoverageBlockout(scene, layout, coverage);
-    this.addRoadNetwork(scene, layout);
     this.addEastLake(scene, layout);
 
     if (debugZones) {
@@ -76,54 +75,6 @@ export class WholeCampusWorld {
     terrain.position.set(centerX, 0, centerZ);
     terrain.receiveShadow = true;
     scene.add(terrain);
-  }
-
-  private addRoadNetwork(scene: THREE.Scene, layout: WholeCampusLayout): void {
-    const group = new THREE.Group();
-    group.name = 'CampusRoadNetwork';
-
-    for (const road of layout.roads) {
-      this.addRoad(group, layout, road);
-    }
-
-    scene.add(group);
-  }
-
-  private addRoad(group: THREE.Group, layout: WholeCampusLayout, road: WorldRoad): void {
-    const material = new THREE.MeshStandardMaterial({
-      color: road.accuracy === 'verified' ? 0x53625e : 0x4a5a58,
-      roughness: 0.92,
-      metalness: 0.01,
-      transparent: road.accuracy === 'placeholder',
-      opacity: road.accuracy === 'placeholder' ? 0.72 : 1,
-    });
-
-    for (let index = 0; index < road.points.length - 1; index += 1) {
-      const start = road.points[index];
-      const end = road.points[index + 1];
-      if (!start || !end) continue;
-
-      const dx = end.x - start.x;
-      const dz = end.z - start.z;
-      const length = Math.hypot(dx, dz);
-      if (length <= 0.01) continue;
-
-      const middleX = (start.x + end.x) / 2;
-      const middleZ = (start.z + end.z) / 2;
-      const elevation = (
-        sampleTerrainHeight(layout, start.x, start.z)
-        + sampleTerrainHeight(layout, end.x, end.z)
-      ) / 2;
-      const segment = new THREE.Mesh(
-        new THREE.BoxGeometry(road.width, 0.45, length),
-        material,
-      );
-      segment.position.set(middleX, elevation + 0.3, middleZ);
-      segment.rotation.y = Math.atan2(dx, dz);
-      segment.receiveShadow = true;
-      segment.userData.roadId = road.id;
-      group.add(segment);
-    }
   }
 
   private addEastLake(scene: THREE.Scene, layout: WholeCampusLayout): void {
