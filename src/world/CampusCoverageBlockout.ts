@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CampusCoverageDataset, CoverageCategory } from './coverageTypes';
-import { sampleTerrainHeight } from './WholeCampusWorld';
+import { sampleTerrainHeight } from './terrain';
 import type { WholeCampusLayout } from './types';
 
 const CATEGORY_COLORS: Record<CoverageCategory, number> = {
