@@ -1,4 +1,5 @@
 import './styles.css';
+import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { CampusViewer } from './viewer/CampusViewer';
@@ -51,7 +52,19 @@ function renderDetail(place: CampusPlace): void {
 
 async function start(): Promise<void> {
   try {
-    const dataset = await loadCampusDataset();
+    const [dataset, assetRegistry] = await Promise.all([
+      loadCampusDataset(),
+      loadAssetRegistry(),
+    ]);
+
+    const assetIds = new Set(assetRegistry.assets.map((asset) => asset.id));
+    const missingAssetBindings = dataset.places.filter(
+      (place) => place.assetId !== null && !assetIds.has(place.assetId),
+    );
+    if (missingAssetBindings.length > 0) {
+      throw new Error(`存在 ${missingAssetBindings.length} 个无效资产绑定`);
+    }
+
     const viewer = new CampusViewer(viewport, dataset, (place) => {
       renderDetail(place);
       for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
@@ -75,7 +88,7 @@ async function start(): Promise<void> {
       placeList.appendChild(button);
     }
 
-    status.textContent = `${dataset.zones.length} 个分区 · ${dataset.places.length} 个重点地点 · 坐标体系：${accuracyLabels[dataset.coordinateSystem.verificationStatus]}`;
+    status.textContent = `${dataset.zones.length} 个分区 · ${dataset.places.length} 个重点地点 · ${assetRegistry.assets.length} 个资产槽位 · 坐标：${accuracyLabels[dataset.coordinateSystem.verificationStatus]}`;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
     status.textContent = `加载失败：${message}`;
