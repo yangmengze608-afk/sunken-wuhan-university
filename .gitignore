@@ -10,6 +10,11 @@
 *.swp
 *~
 
+# Node / Vite
+node_modules/
+dist/
+*.local
+
 # 日志与临时文件
 *.log
 tmp/
