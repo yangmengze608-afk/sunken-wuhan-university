@@ -3,6 +3,7 @@ import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { CampusViewer } from './viewer/CampusViewer';
+import { loadCampusCoverage } from './world/loadCampusCoverage';
 import { loadWorldLayout } from './world/loadWorldLayout';
 
 function requireElement<T extends HTMLElement>(selector: string): T {
@@ -57,10 +58,11 @@ function renderDetail(place: CampusPlace): void {
 
 async function start(): Promise<void> {
   try {
-    const [dataset, assetRegistry, worldLayout] = await Promise.all([
+    const [dataset, assetRegistry, worldLayout, coverage] = await Promise.all([
       loadCampusDataset(),
       loadAssetRegistry(),
       loadWorldLayout(),
+      loadCampusCoverage(),
     ]);
 
     const assetIds = new Set(assetRegistry.assets.map((asset) => asset.id));
@@ -81,7 +83,19 @@ async function start(): Promise<void> {
       throw new Error(`存在 ${placesOutsideWorld.length} 个地点超出完整校园边界`);
     }
 
-    const viewer = new CampusViewer(viewport, dataset, worldLayout, (place) => {
+    const coverageOutsideWorld = coverage.areas.filter((area) => {
+      const halfWidth = area.size.width / 2;
+      const halfDepth = area.size.depth / 2;
+      return area.center.x - halfWidth < worldLayout.bounds.minX
+        || area.center.x + halfWidth > worldLayout.bounds.maxX
+        || area.center.z - halfDepth < worldLayout.bounds.minZ
+        || area.center.z + halfDepth > worldLayout.bounds.maxZ;
+    });
+    if (coverageOutsideWorld.length > 0) {
+      throw new Error(`存在 ${coverageOutsideWorld.length} 个校园覆盖区超出完整世界边界`);
+    }
+
+    const viewer = new CampusViewer(viewport, dataset, worldLayout, coverage, (place) => {
       renderDetail(place);
       for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
         button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
@@ -106,13 +120,14 @@ async function start(): Promise<void> {
 
     const worldWidth = worldLayout.bounds.maxX - worldLayout.bounds.minX;
     const worldDepth = worldLayout.bounds.maxZ - worldLayout.bounds.minZ;
-    status.textContent = `一张连续校园 · ${worldWidth}×${worldDepth}m 工程范围 · ${dataset.places.length} 个重点地点 · 总图：${accuracyLabels[worldLayout.accuracy]}`;
+    const blockoutCount = coverage.areas.reduce((total, area) => total + area.blockCount, 0);
+    status.textContent = `一张连续校园 · ${worldWidth}×${worldDepth}m · ${coverage.areas.length} 类全校覆盖 · ${blockoutCount} 个粗模体块 · ${dataset.places.length} 个重点地点`;
     detail.innerHTML = `
-      <p class="detail-kicker">WHOLE CAMPUS WORLD</p>
+      <p class="detail-kicker">WHOLE CAMPUS BLOCKOUT</p>
       <h2>${worldLayout.nameZh}</h2>
       <h3>${worldLayout.nameEn}</h3>
-      <p>所有地点现在位于同一个连续世界坐标系中。分区仅用于后台资料管理和未来的无感流式加载，不是独立空间。</p>
-      <p>${worldLayout.streaming.policyEn}</p>
+      <p>全校园不再只有少数地标。当前已把历史核心、人文社科、理学、工学、信息科学、医学、宿舍生活、体育开放空间和公共后勤设施铺进同一个连续世界。</p>
+      <p>这些体块只表达“完整覆盖必须存在”，不代表真实楼栋、学院边界或测绘坐标；后续会依据可追溯地图逐片校准并逐栋替换。</p>
     `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
