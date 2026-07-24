@@ -1,10 +1,14 @@
 import './styles.css';
 import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
+import { loadSourceRegistry } from './data/sourceRegistry';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
+import { loadCampusGeoData } from './geodata/loadCampusGeoData';
+import type { CampusGeoFeatureCollection } from './geodata/types';
 import { CampusViewer } from './viewer/CampusViewer';
 import { loadCampusCoverage } from './world/loadCampusCoverage';
 import { loadWorldLayout } from './world/loadWorldLayout';
+import type { WholeCampusLayout } from './world/types';
 
 function requireElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -12,6 +16,34 @@ function requireElement<T extends HTMLElement>(selector: string): T {
     throw new Error(`V2 页面缺少必要节点：${selector}`);
   }
   return element;
+}
+
+function geoCoordinates(data: CampusGeoFeatureCollection): [number, number][] {
+  const coordinates: [number, number][] = [];
+  for (const feature of data.features) {
+    if (feature.geometry.type === 'Point') {
+      coordinates.push(feature.geometry.coordinates);
+    } else if (feature.geometry.type === 'LineString') {
+      coordinates.push(...feature.geometry.coordinates);
+    } else {
+      for (const ring of feature.geometry.coordinates) {
+        coordinates.push(...ring);
+      }
+    }
+  }
+  return coordinates;
+}
+
+function validateGeoBounds(data: CampusGeoFeatureCollection, layout: WholeCampusLayout): void {
+  const outside = geoCoordinates(data).filter(([x, z]) => (
+    x < layout.bounds.minX
+    || x > layout.bounds.maxX
+    || z < layout.bounds.minZ
+    || z > layout.bounds.maxZ
+  ));
+  if (outside.length > 0) {
+    throw new Error(`校园矢量数据有 ${outside.length} 个坐标点超出完整世界边界`);
+  }
 }
 
 const viewport = requireElement<HTMLElement>('#viewport');
@@ -58,11 +90,13 @@ function renderDetail(place: CampusPlace): void {
 
 async function start(): Promise<void> {
   try {
-    const [dataset, assetRegistry, worldLayout, coverage] = await Promise.all([
+    const [dataset, assetRegistry, sourceRegistry, worldLayout, coverage, geoData] = await Promise.all([
       loadCampusDataset(),
       loadAssetRegistry(),
+      loadSourceRegistry(),
       loadWorldLayout(),
       loadCampusCoverage(),
+      loadCampusGeoData(),
     ]);
 
     const assetIds = new Set(assetRegistry.assets.map((asset) => asset.id));
@@ -71,6 +105,14 @@ async function start(): Promise<void> {
     );
     if (missingAssetBindings.length > 0) {
       throw new Error(`存在 ${missingAssetBindings.length} 个无效资产绑定`);
+    }
+
+    const sourceIds = new Set(sourceRegistry.records.map((source) => source.id));
+    const missingGeoSources = geoData.features.flatMap((feature) => (
+      feature.properties.sourceIds.filter((sourceId) => !sourceIds.has(sourceId))
+    ));
+    if (missingGeoSources.length > 0) {
+      throw new Error(`校园矢量数据引用了 ${missingGeoSources.length} 个未登记来源`);
     }
 
     const placesOutsideWorld = dataset.places.filter(
@@ -94,8 +136,9 @@ async function start(): Promise<void> {
     if (coverageOutsideWorld.length > 0) {
       throw new Error(`存在 ${coverageOutsideWorld.length} 个校园覆盖区超出完整世界边界`);
     }
+    validateGeoBounds(geoData, worldLayout);
 
-    const viewer = new CampusViewer(viewport, dataset, worldLayout, coverage, (place) => {
+    const viewer = new CampusViewer(viewport, dataset, worldLayout, coverage, geoData, (place) => {
       renderDetail(place);
       for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
         button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
@@ -121,13 +164,15 @@ async function start(): Promise<void> {
     const worldWidth = worldLayout.bounds.maxX - worldLayout.bounds.minX;
     const worldDepth = worldLayout.bounds.maxZ - worldLayout.bounds.minZ;
     const blockoutCount = coverage.areas.reduce((total, area) => total + area.blockCount, 0);
-    status.textContent = `一张连续校园 · ${worldWidth}×${worldDepth}m · ${coverage.areas.length} 类全校覆盖 · ${blockoutCount} 个粗模体块 · ${dataset.places.length} 个重点地点`;
+    const polygonCount = geoData.features.filter((feature) => feature.geometry.type === 'Polygon').length;
+    const routeCount = geoData.features.filter((feature) => feature.geometry.type === 'LineString').length;
+    status.textContent = `连续校园 ${worldWidth}×${worldDepth}m · ${blockoutCount} 个背景粗模 · ${polygonCount} 个矢量场地/建筑轮廓 · ${routeCount} 条矢量路线`;
     detail.innerHTML = `
-      <p class="detail-kicker">WHOLE CAMPUS BLOCKOUT</p>
+      <p class="detail-kicker">GEODATA PIPELINE ACTIVE</p>
       <h2>${worldLayout.nameZh}</h2>
       <h3>${worldLayout.nameEn}</h3>
-      <p>全校园不再只有少数地标。当前已把历史核心、人文社科、理学、工学、信息科学、医学、宿舍生活、体育开放空间和公共后勤设施铺进同一个连续世界。</p>
-      <p>这些体块只表达“完整覆盖必须存在”，不代表真实楼栋、学院边界或测绘坐标；后续会依据可追溯地图逐片校准并逐栋替换。</p>
+      <p>重点建筑、操场、道路、台阶和岸线引导已经进入统一 GeoJSON 图层。页面会按多边形和折线渲染，而不是只能依赖中心点方盒。</p>
+      <p>当前矢量要素仍为项目自制工程占位，未嵌入武汉大学官方地图或 OSM 几何。每个要素都必须绑定来源 ID，未来可逐项替换为核验后的真实轮廓。</p>
     `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
