@@ -28,17 +28,27 @@
     position: fixed; inset: 0; pointer-events: none; z-index: 8;
     background: radial-gradient(ellipse at center, transparent 55%, rgba(1, 12, 18, 0.55) 100%);
   }
+  #waterOverlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 7;
+    mix-blend-mode: soft-light; opacity: 0.5;
+    background: linear-gradient(170deg, rgba(40,120,110,0.1), transparent 40%, rgba(20,80,100,0.12) 70%, transparent);
+    background-size: 200% 200%;
+    animation: waterShift 15s ease-in-out infinite alternate;
+  }
+  @keyframes waterShift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div id="vignette"></div>
+<div id="waterOverlay"></div>
 <div id="crosshair"></div>
 <div id="hud">
   <h1>水下珞珈 · 沉没的武汉大学</h1>
   <div class="dim">WASD 移动 · 空格 上浮 · Shift 快速下潜</div>
   <div class="dim">鼠标拖拽 转动视角 · 滚轮 调节速度</div>
   <div id="stats">深度 <b id="uiDepth">--</b> m · 速度 <b id="uiSpeed">--</b> · FPS <b id="uiFps">--</b></div>
+  <div id="audioHint" class="dim" style="margin-top:4px;font-size:11px;opacity:0.7">点击屏幕启用水下声效</div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -48,7 +58,8 @@
  * 模块：01 配置与工具  02 渲染器与光照  03 水下着色注入(焦散/深度渐变/体积雾/沉积物)
  *      04 程序化纹理(含凹凸)  05 珞珈山地形  06 湖面与水穹  07 体积光柱
  *      08 校园建筑与废墟  09 植被(噪声树冠/远山简化)  10 水底细节
- *      11 粒子系统  12 漫游控制器  13 距离剔除与主循环
+ *      11 粒子系统  12 鱼群  13 气泡流  14 水母  15 墙面藤蔓
+ *      16 水下环境音  17 漫游控制器  18 距离剔除与主循环
  * ==========================================================================*/
 if (typeof THREE === 'undefined') {
   document.getElementById('hud').innerHTML =
@@ -1457,7 +1468,299 @@ function createDrifters() {
   scene.add(new THREE.Points(geo, mat));
 }
 
-/* ============ 12 第一人称水下漫游控制器 ================================ */
+/* ============== 12 鱼群（InstancedBuffer + GPU 集群运动） ================== */
+function createFishSchool(cx, cy, cz, count, color, bodyLen, schoolRadius) {
+  const baseGeo = new THREE.ConeGeometry(0.12 * bodyLen, bodyLen, 4);
+  baseGeo.rotateX(Math.PI / 2);
+  const instGeo = new THREE.InstancedBufferGeometry();
+  instGeo.index = baseGeo.index;
+  instGeo.setAttribute('position', baseGeo.attributes.position);
+  instGeo.setAttribute('normal', baseGeo.attributes.normal);
+  const phases = new Float32Array(count);
+  const offsets = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    phases[i] = rand() * Math.PI * 2;
+    offsets[i * 3] = (rand() - 0.5) * schoolRadius * 0.6;
+    offsets[i * 3 + 1] = (rand() - 0.5) * schoolRadius * 0.3;
+    offsets[i * 3 + 2] = (rand() - 0.5) * schoolRadius * 0.6;
+  }
+  instGeo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phases, 1));
+  instGeo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offsets, 3));
+  const cr = ((color >> 16) & 0xff) / 255;
+  const cg = ((color >> 8) & 0xff) / 255;
+  const cb = (color & 0xff) / 255;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: UW.time,
+      uCenter: { value: new THREE.Vector3(cx, cy, cz) },
+      uRadius: { value: schoolRadius },
+      uWaterLevel: UW.waterLevel,
+    },
+    side: THREE.DoubleSide,
+    vertexShader: `
+      attribute float aPhase;
+      attribute vec3 aOffset;
+      uniform float uTime;
+      uniform vec3 uCenter;
+      uniform float uRadius;
+      varying float vShade;
+      varying vec3 vWP;
+      void main() {
+        float t = uTime * 0.55 + aPhase;
+        vec3 c = uCenter;
+        c.x += sin(uTime * 0.07 + aPhase * 0.05) * 35.0;
+        c.z += cos(uTime * 0.055 + aPhase * 0.08) * 35.0;
+        c.y += sin(uTime * 0.09) * 4.0;
+        vec3 fp = c + vec3(
+          cos(t) * uRadius + aOffset.x,
+          sin(t * 0.45 + aPhase * 1.7) * uRadius * 0.18 + aOffset.y,
+          sin(t) * uRadius + aOffset.z);
+        vec3 vel = vec3(-sin(t), cos(t * 0.45 + aPhase * 1.7) * 0.08, cos(t)) * uRadius;
+        vec3 fwd = normalize(vel);
+        vec3 up = vec3(0.0, 1.0, 0.0);
+        vec3 rt = normalize(cross(up, fwd));
+        up = cross(fwd, rt);
+        vec3 p = position;
+        p.x += sin(uTime * 7.5 + aPhase + p.z * 3.5) * 0.05 * max(0.0, -p.z / ${bodyLen.toFixed(1)});
+        vec3 wp = fp + mat3(rt, up, fwd) * p;
+        vWP = wp;
+        vec3 wn = mat3(rt, up, fwd) * normal;
+        vShade = 0.35 + 0.65 * max(0.0, dot(normalize(wn), normalize(vec3(0.3, 1.0, 0.2))));
+        gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uWaterLevel;
+      varying float vShade;
+      varying vec3 vWP;
+      void main() {
+        vec3 col = vec3(${cr.toFixed(3)}, ${cg.toFixed(3)}, ${cb.toFixed(3)}) * vShade;
+        float d = clamp((uWaterLevel - vWP.y) / 92.0, 0.0, 1.0);
+        col *= mix(vec3(1.0), mix(vec3(0.30,0.60,0.51), vec3(0.045,0.12,0.19), d) * 1.6, 0.35 + 0.2 * d);
+        float dist = length(vWP - cameraPosition);
+        float fog = 1.0 - exp(-max(dist - 10.0, 0.0) * mix(0.004, 0.009, d));
+        col = mix(col, mix(vec3(0.055,0.20,0.20), vec3(0.012,0.055,0.095), d * 0.85), clamp(fog, 0.0, 1.0));
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+  scene.add(new THREE.Mesh(instGeo, mat));
+}
+function buildFishSchools() {
+  createFishSchool(-50, 55, 80, 60, 0x8aa0b0, 1.0, 18);
+  createFishSchool(200, 40, -20, 40, 0xc89450, 1.4, 22);
+  createFishSchool(-200, 30, 200, 35, 0x5a7a6a, 1.8, 25);
+  createFishSchool(80, 65, 180, 80, 0x7ab0c8, 0.7, 14);
+}
+
+/* ============== 13 气泡流（从废墟裂缝上升的气泡链） ======================== */
+function createBubbleStream(cx, originY, cz, count) {
+  const pos = new Float32Array(count * 3);
+  const seed = new Float32Array(count);
+  const siz = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = cx + randRange(-2, 2);
+    pos[i * 3 + 1] = originY;
+    pos[i * 3 + 2] = cz + randRange(-2, 2);
+    seed[i] = rand();
+    siz[i] = randRange(1.5, 4.5);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(siz, 1));
+  const riseH = Math.max(CONFIG.waterLevel - originY, 10);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: UW.time },
+    transparent: true, depthWrite: false,
+    vertexShader: `
+      attribute float aSeed; attribute float aSize;
+      uniform float uTime;
+      varying float vA;
+      void main() {
+        vec3 p = position;
+        float spd = 1.5 + aSeed * 3.0;
+        float cyc = mod(uTime * spd + aSeed * 100.0, ${riseH.toFixed(1)});
+        p.y += cyc;
+        p.x += sin(uTime * 1.8 + aSeed * 40.0) * (1.0 + cyc * 0.018);
+        p.z += cos(uTime * 1.4 + aSeed * 33.0) * (1.0 + cyc * 0.014);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_PointSize = aSize * (1.0 + cyc * 0.008) * (120.0 / max(-mv.z, 1.0));
+        vA = 0.55 * smoothstep(0.0, 3.0, cyc) * smoothstep(${riseH.toFixed(1)}, ${Math.max(riseH - 6, 0).toFixed(1)}, cyc);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying float vA;
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        float ring = smoothstep(0.92, 0.72, d) * smoothstep(0.35, 0.55, d);
+        float fill = smoothstep(0.9, 0.0, d) * 0.12;
+        float spec = pow(max(0.0, 1.0 - length(gl_PointCoord - vec2(0.35, 0.35)) * 3.5), 4.0) * 0.4;
+        float a = (ring + fill + spec) * vA;
+        if (a < 0.01) discard;
+        gl_FragColor = vec4(vec3(0.55, 0.82, 0.75) * a + spec * vec3(0.6, 0.8, 0.7), a);
+      }
+    `,
+  });
+  scene.add(new THREE.Points(geo, mat));
+}
+function buildBubbleStreams() {
+  [[272, -62, 45], [265, -55, 30], [-120, -65, 35], [340, -42, 20], [148, 232, 25]].forEach(s => {
+    createBubbleStream(s[0], terrainHeight(s[0], s[1]) + 2, s[1], s[2]);
+  });
+}
+
+/* ============== 14 水母（半透明脉动发光体） ================================ */
+const jellyfishList = [];
+function buildJellyfish() {
+  for (let i = 0; i < 6; i++) {
+    const jx = randRange(-300, 350), jz = randRange(-280, 300);
+    const jy = randRange(35, CONFIG.waterLevel - 12);
+    const g = new THREE.Group();
+    const bs = randRange(1.2, 2.6), ph = rand() * 10;
+    const bellGeo = new THREE.SphereGeometry(bs, 10, 7, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const bellMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: UW.time, uPh: { value: ph } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: `
+        uniform float uTime; uniform float uPh; varying float vE;
+        void main() {
+          vec3 p = position;
+          float pulse = 0.85 + 0.15 * sin(uTime * 2.2 + uPh);
+          p.xz *= pulse; p.y *= 0.88 + 0.12 * sin(uTime * 2.2 + uPh + 0.4);
+          vE = 1.0 - abs(normalize(p).y);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: `
+        uniform float uTime; uniform float uPh; varying float vE;
+        void main() {
+          float glow = 0.5 + 0.5 * sin(uTime * 1.5 + uPh);
+          vec3 col = mix(vec3(0.18, 0.35, 0.58), vec3(0.45, 0.65, 0.85), vE) + glow * vec3(0.15, 0.25, 0.35);
+          float a = (0.25 + 0.35 * vE) * (0.8 + 0.2 * glow);
+          gl_FragColor = vec4(col * a, a);
+        }`,
+    });
+    const bell = new THREE.Mesh(bellGeo, bellMat);
+    bell.rotation.x = Math.PI;
+    g.add(bell);
+    const tc = 5 + Math.floor(rand() * 4);
+    for (let t = 0; t < tc; t++) {
+      const tl = bs * (2.5 + rand() * 2);
+      const tGeo = new THREE.PlaneGeometry(0.06, tl, 1, 7);
+      tGeo.translate(0, -tl / 2, 0);
+      const tMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: UW.time, uPh: { value: ph + t * 0.7 } },
+        transparent: true, depthWrite: false, side: THREE.DoubleSide,
+        vertexShader: `
+          uniform float uTime; uniform float uPh; varying float vH;
+          void main() {
+            vec3 p = position;
+            float h = clamp(-p.y / ${tl.toFixed(1)}, 0.0, 1.0);
+            p.x += sin(uTime * 1.6 + uPh + p.y * 0.6) * h * 0.7;
+            p.z += cos(uTime * 1.2 + uPh * 1.4 + p.y * 0.5) * h * 0.5;
+            vH = h;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+          }`,
+        fragmentShader: `
+          varying float vH;
+          void main() {
+            float a = 0.35 * (1.0 - vH * 0.65);
+            gl_FragColor = vec4(vec3(0.35, 0.55, 0.78) * a, a);
+          }`,
+      });
+      const tent = new THREE.Mesh(tGeo, tMat);
+      const ang = (t / tc) * Math.PI * 2 + rand() * 0.3;
+      tent.position.set(Math.cos(ang) * bs * 0.6, -bs * 0.3, Math.sin(ang) * bs * 0.6);
+      g.add(tent);
+    }
+    g.position.set(jx, jy, jz);
+    scene.add(g);
+    jellyfishList.push({ g, by: jy, ph, dx: randRange(-0.4, 0.4), dz: randRange(-0.4, 0.4) });
+    registerCullable(g, 400);
+  }
+}
+
+/* ============== 15 墙面藤蔓 / 水藻附着 =================================== */
+function buildWallVines() {
+  const vGeo = new THREE.PlaneGeometry(0.5, 4.5, 1, 6);
+  vGeo.translate(0, 2.25, 0);
+  const vMat = patchUnderwater(new THREE.MeshPhongMaterial({
+    color: 0x1e5233, emissive: 0x0a1c10, shininess: 5,
+    side: THREE.DoubleSide, transparent: true, opacity: 0.80,
+  }), { sway: true, silt: 0.06 });
+  const pts = [];
+  for (let i = 0; i < 18; i++) pts.push([-150 + randRange(-13, 13), terrainHeight(-150, -142) + randRange(6, 14), -132 + (rand() > 0.5 ? -10 : 0)]);
+  for (let i = 0; i < 14; i++) pts.push([140 + randRange(-12, 12), terrainHeight(140, 18) + randRange(3, 16), 18 + (rand() > 0.5 ? 8 : -8)]);
+  for (let t = 0; t < 3; t++) for (let i = 0; i < 8; i++) pts.push([-150 + randRange(-30, 30), terrainHeight(-150, -42) + t * 7.2 + randRange(3, 8), -52 - t * 11.5 + 7]);
+  for (let i = 0; i < 12; i++) pts.push([10 + randRange(-12, 12), terrainHeight(10, 120) + randRange(4, 12), 120 + (rand() > 0.5 ? 11 : -11)]);
+  for (let i = 0; i < 20; i++) pts.push([272 + randRange(-20, 20), terrainHeight(272, -62) + randRange(2, 10), -62 + randRange(-8, 8)]);
+  const inst = new THREE.InstancedMesh(vGeo, vMat, pts.length);
+  const dm = new THREE.Object3D();
+  pts.forEach((p, i) => {
+    dm.position.set(p[0], p[1], p[2]);
+    dm.rotation.set(Math.PI + randRange(-0.3, 0.3), rand() * Math.PI, randRange(-0.2, 0.2));
+    const s = randRange(0.5, 1.4);
+    dm.scale.set(s, s, s);
+    dm.updateMatrix();
+    inst.setMatrixAt(i, dm.matrix);
+  });
+  inst.receiveShadow = true;
+  scene.add(inst);
+}
+
+/* ============== 16 水下环境音（Web Audio API） ============================= */
+let audioInited = false;
+function initUnderwaterAudio() {
+  if (audioInited) return;
+  audioInited = true;
+  const hint = document.getElementById('audioHint');
+  if (hint) hint.style.display = 'none';
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const m = ac.createGain(); m.gain.value = 0.35; m.connect(ac.destination);
+    const d1 = ac.createOscillator(); d1.type = 'sine'; d1.frequency.value = 46;
+    const g1 = ac.createGain(); g1.gain.value = 0.07;
+    d1.connect(g1); g1.connect(m); d1.start();
+    const d2 = ac.createOscillator(); d2.type = 'sine'; d2.frequency.value = 70;
+    const g2 = ac.createGain(); g2.gain.value = 0.04;
+    d2.connect(g2); g2.connect(m); d2.start();
+    const nLen = ac.sampleRate * 3;
+    const nBuf = ac.createBuffer(1, nLen, ac.sampleRate);
+    const nD = nBuf.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nD[i] = Math.random() * 2 - 1;
+    const ns = ac.createBufferSource(); ns.buffer = nBuf; ns.loop = true;
+    const nF = ac.createBiquadFilter(); nF.type = 'bandpass'; nF.frequency.value = 180; nF.Q.value = 0.4;
+    const nG = ac.createGain(); nG.gain.value = 0.05;
+    ns.connect(nF); nF.connect(nG); nG.connect(m); ns.start();
+    function bub() {
+      const t = ac.currentTime, o = ac.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(500 + Math.random() * 1000, t);
+      o.frequency.exponentialRampToValueAtTime(180 + Math.random() * 300, t + 0.1);
+      const e = ac.createGain();
+      e.gain.setValueAtTime(0.06, t); e.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      o.connect(e); e.connect(m); o.start(t); o.stop(t + 0.15);
+      setTimeout(bub, 1500 + Math.random() * 4000);
+    }
+    setTimeout(bub, 500);
+    function moan() {
+      const t = ac.currentTime, o = ac.createOscillator(); o.type = 'sine';
+      const f0 = 80 + Math.random() * 60;
+      o.frequency.setValueAtTime(f0, t);
+      o.frequency.linearRampToValueAtTime(f0 * 0.7, t + 3);
+      o.frequency.linearRampToValueAtTime(f0 * 0.85, t + 5);
+      const e = ac.createGain();
+      e.gain.setValueAtTime(0, t); e.gain.linearRampToValueAtTime(0.035, t + 0.8);
+      e.gain.linearRampToValueAtTime(0.025, t + 3); e.gain.linearRampToValueAtTime(0, t + 5.5);
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 200;
+      o.connect(f); f.connect(e); e.connect(m); o.start(t); o.stop(t + 6);
+      setTimeout(moan, 15000 + Math.random() * 25000);
+    }
+    setTimeout(moan, 5000);
+  } catch (e) {}
+}
+
+/* ============ 17 第一人称水下漫游控制器 ================================ */
 class SwimControls {
   constructor(cam, dom) {
     this.cam = cam;
@@ -1523,7 +1826,7 @@ class SwimControls {
   }
 }
 
-/* ============ 13 距离剔除优化 + 主循环 ================================= */
+/* ============ 18 距离剔除优化 + 主循环 ================================= */
 // 手动距离剔除（配合 Three.js 自动视锥剔除）：远处对象整组隐藏
 const cullables = [];
 function registerCullable(obj, dist) {
@@ -1548,6 +1851,10 @@ buildVegetation();
 buildDetails();
 createPlankton();
 createDrifters();
+buildFishSchools();
+buildBubbleStreams();
+buildJellyfish();
+buildWallVines();
 const controls = new SwimControls(camera, container);
 
 // ---- HUD ----
@@ -1572,6 +1879,13 @@ function animate() {
   waterUniforms.uSunPos.value.set(sunLight.position.x, 420, sunLight.position.z);
 
   controls.update(dt);
+  jellyfishList.forEach(j => {
+    j.g.position.x += j.dx * dt;
+    j.g.position.z += j.dz * dt;
+    j.g.position.y = j.by + Math.sin(t * 0.4 + j.ph) * 3 + Math.sin(t * 2.2 + j.ph) * 0.3;
+    if (Math.abs(j.g.position.x) > 450) j.dx *= -1;
+    if (Math.abs(j.g.position.z) > 400) j.dz *= -1;
+  });
   updateCulling();
   dome.position.copy(camera.position);   // 水穹始终包裹相机
 
@@ -1588,6 +1902,8 @@ function animate() {
   }
 }
 animate();
+container.addEventListener('mousedown', initUnderwaterAudio);
+window.addEventListener('keydown', initUnderwaterAudio);
 
 // ---- 自适应窗口 ----
 window.addEventListener('resize', () => {
