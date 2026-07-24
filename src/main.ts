@@ -3,6 +3,7 @@ import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { CampusViewer } from './viewer/CampusViewer';
+import { loadWorldLayout } from './world/loadWorldLayout';
 
 function requireElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -56,9 +57,10 @@ function renderDetail(place: CampusPlace): void {
 
 async function start(): Promise<void> {
   try {
-    const [dataset, assetRegistry] = await Promise.all([
+    const [dataset, assetRegistry, worldLayout] = await Promise.all([
       loadCampusDataset(),
       loadAssetRegistry(),
+      loadWorldLayout(),
     ]);
 
     const assetIds = new Set(assetRegistry.assets.map((asset) => asset.id));
@@ -69,7 +71,17 @@ async function start(): Promise<void> {
       throw new Error(`存在 ${missingAssetBindings.length} 个无效资产绑定`);
     }
 
-    const viewer = new CampusViewer(viewport, dataset, (place) => {
+    const placesOutsideWorld = dataset.places.filter(
+      (place) => place.position.x < worldLayout.bounds.minX
+        || place.position.x > worldLayout.bounds.maxX
+        || place.position.z < worldLayout.bounds.minZ
+        || place.position.z > worldLayout.bounds.maxZ,
+    );
+    if (placesOutsideWorld.length > 0) {
+      throw new Error(`存在 ${placesOutsideWorld.length} 个地点超出完整校园边界`);
+    }
+
+    const viewer = new CampusViewer(viewport, dataset, worldLayout, (place) => {
       renderDetail(place);
       for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
         button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
@@ -92,7 +104,16 @@ async function start(): Promise<void> {
       placeList.appendChild(button);
     }
 
-    status.textContent = `${dataset.zones.length} 个分区 · ${dataset.places.length} 个重点地点 · ${assetRegistry.assets.length} 个资产槽位 · 坐标：${accuracyLabels[dataset.coordinateSystem.verificationStatus]}`;
+    const worldWidth = worldLayout.bounds.maxX - worldLayout.bounds.minX;
+    const worldDepth = worldLayout.bounds.maxZ - worldLayout.bounds.minZ;
+    status.textContent = `一张连续校园 · ${worldWidth}×${worldDepth}m 工程范围 · ${dataset.places.length} 个重点地点 · 总图：${accuracyLabels[worldLayout.accuracy]}`;
+    detail.innerHTML = `
+      <p class="detail-kicker">WHOLE CAMPUS WORLD</p>
+      <h2>${worldLayout.nameZh}</h2>
+      <h3>${worldLayout.nameEn}</h3>
+      <p>所有地点现在位于同一个连续世界坐标系中。分区仅用于后台资料管理和未来的无感流式加载，不是独立空间。</p>
+      <p>${worldLayout.streaming.policyEn}</p>
+    `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
     status.textContent = `加载失败：${message}`;
