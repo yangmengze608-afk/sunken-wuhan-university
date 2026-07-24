@@ -7,6 +7,9 @@ import type { CampusCoverageDataset } from '../world/coverageTypes';
 import { sampleTerrainHeight } from '../world/terrain';
 import { WholeCampusWorld } from '../world/WholeCampusWorld';
 import type { WholeCampusLayout } from '../world/types';
+import { SwimFirstPersonControls, type SwimTelemetry } from './SwimFirstPersonControls';
+
+export type ViewMode = 'first-person' | 'overview';
 
 const CATEGORY_COLORS: Record<CampusPlace['category'], number> = {
   'historic-building': 0xb8a276,
@@ -35,14 +38,20 @@ export class CampusViewer {
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly controls: OrbitControls;
+  private readonly overviewControls: OrbitControls;
+  private readonly swimControls: SwimFirstPersonControls;
+  private readonly overviewPosition: THREE.Vector3;
+  private readonly overviewTarget = new THREE.Vector3(0, 20, 0);
   private readonly raycaster = new THREE.Raycaster();
   private readonly pointer = new THREE.Vector2();
   private readonly placeObjects = new Map<string, THREE.Object3D>();
   private readonly interactiveObjects: THREE.Object3D[] = [];
   private readonly resizeObserver: ResizeObserver;
+  private readonly clock = new THREE.Clock();
   private animationFrame = 0;
+  private telemetryTick = 0;
   private selectedId: string | null = null;
+  private mode: ViewMode | null = null;
 
   constructor(
     private readonly container: HTMLElement,
@@ -51,6 +60,8 @@ export class CampusViewer {
     coverage: CampusCoverageDataset,
     geoData: CampusGeoFeatureCollection,
     private readonly onSelect: (place: CampusPlace) => void,
+    private readonly onModeChange: (mode: ViewMode) => void,
+    private readonly onTelemetry: (telemetry: SwimTelemetry) => void,
   ) {
     this.scene.background = new THREE.Color(0x041820);
     this.scene.fog = new THREE.FogExp2(0x09242c, 0.00135);
@@ -58,9 +69,14 @@ export class CampusViewer {
     const worldWidth = layout.bounds.maxX - layout.bounds.minX;
     const worldDepth = layout.bounds.maxZ - layout.bounds.minZ;
     const overviewDistance = Math.max(worldWidth, worldDepth) * 0.78;
+    this.overviewPosition = new THREE.Vector3(
+      overviewDistance * 0.7,
+      overviewDistance * 0.52,
+      overviewDistance,
+    );
 
-    this.camera = new THREE.PerspectiveCamera(48, 1, 0.1, 6000);
-    this.camera.position.set(overviewDistance * 0.7, overviewDistance * 0.52, overviewDistance);
+    this.camera = new THREE.PerspectiveCamera(58, 1, 0.1, 6000);
+    this.camera.position.copy(this.overviewPosition);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -71,13 +87,16 @@ export class CampusViewer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(this.renderer.domElement);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.06;
-    this.controls.minDistance = 35;
-    this.controls.maxDistance = Math.max(worldWidth, worldDepth) * 1.8;
-    this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.controls.target.set(0, 20, 0);
+    this.overviewControls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.overviewControls.enableDamping = true;
+    this.overviewControls.dampingFactor = 0.06;
+    this.overviewControls.minDistance = 35;
+    this.overviewControls.maxDistance = Math.max(worldWidth, worldDepth) * 1.8;
+    this.overviewControls.maxPolarAngle = Math.PI * 0.49;
+    this.overviewControls.target.copy(this.overviewTarget);
+    this.overviewControls.enabled = false;
+
+    this.swimControls = new SwimFirstPersonControls(this.camera, this.renderer.domElement, layout);
 
     const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
     new WholeCampusWorld(this.scene, layout, dataset, coverage, debugZones);
@@ -92,7 +111,34 @@ export class CampusViewer {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
     this.resize();
+    this.setMode('first-person');
     this.animate();
+  }
+
+  setMode(mode: ViewMode): void {
+    if (this.mode === mode) return;
+
+    if (mode === 'first-person') {
+      this.overviewControls.enabled = false;
+      this.swimControls.setActive(true);
+    } else {
+      this.swimControls.setActive(false);
+      this.camera.position.copy(this.overviewPosition);
+      this.overviewControls.target.copy(this.overviewTarget);
+      this.overviewControls.enabled = true;
+      this.overviewControls.update();
+    }
+
+    this.mode = mode;
+    this.onModeChange(mode);
+  }
+
+  toggleMode(): void {
+    this.setMode(this.mode === 'first-person' ? 'overview' : 'first-person');
+  }
+
+  getMode(): ViewMode {
+    return this.mode ?? 'first-person';
   }
 
   focusPlace(placeId: string): void {
@@ -110,9 +156,19 @@ export class CampusViewer {
     const target = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     const extent = Math.max(size.x, size.y, size.z, place.dimensions.width, 20);
-    this.controls.target.copy(target);
-    this.camera.position.set(target.x + extent * 1.8, target.y + extent * 1.35, target.z + extent * 1.8);
-    this.controls.update();
+
+    if (this.mode === 'first-person') {
+      this.swimControls.moveNear(target, extent);
+    } else {
+      this.overviewControls.target.copy(target);
+      this.camera.position.set(
+        target.x + extent * 1.8,
+        target.y + extent * 1.35,
+        target.z + extent * 1.8,
+      );
+      this.overviewControls.update();
+    }
+
     this.onSelect(place);
   }
 
@@ -120,12 +176,15 @@ export class CampusViewer {
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
     this.renderer.domElement.removeEventListener('click', this.handleClick);
-    this.controls.dispose();
+    this.swimControls.dispose();
+    this.overviewControls.dispose();
     this.renderer.dispose();
     this.container.replaceChildren();
   }
 
   private readonly handleClick = (event: MouseEvent): void => {
+    if (this.mode === 'first-person' && this.swimControls.consumeClickSuppression()) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -177,7 +236,18 @@ export class CampusViewer {
 
   private readonly animate = (): void => {
     this.animationFrame = requestAnimationFrame(this.animate);
-    this.controls.update();
+    const deltaSeconds = Math.min(this.clock.getDelta(), 0.05);
+
+    if (this.mode === 'first-person') {
+      this.swimControls.update(deltaSeconds);
+      this.telemetryTick += 1;
+      if (this.telemetryTick % 6 === 0) {
+        this.onTelemetry(this.swimControls.getTelemetry());
+      }
+    } else {
+      this.overviewControls.update();
+    }
+
     this.renderer.render(this.scene, this.camera);
   };
 }
