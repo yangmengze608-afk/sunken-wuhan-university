@@ -29,16 +29,36 @@ V2 的目标不是优先增加玩法，而是让武汉大学校园能够被**持
 
 `zones` **不是独立场景、房间或关卡**，也不应在最终体验中形成可见边界。分区加载必须对用户透明，加载区交界处不得出现跳转、黑屏、地形断裂或建筑消失。
 
+## 不可删除的主体验：第一人称水下漫游
+
+V2 的默认浏览方式必须是第一人称水下漫游，而不是俯视地图、轨道相机或地点选择器。
+
+必须长期保留：
+
+- WASD 前进、后退和侧移；
+- 空格上浮；
+- Shift 下潜；
+- 鼠标拖动观察方向；
+- 滚轮调整游动速度；
+- 水中惯性；
+- 地形、世界边界和水下高度约束；
+- 从一个校园地点连续游向另一个地点。
+
+校园总览相机只允许作为辅助定位和开发检查工具。它不能取代第一人称模式，也不能因为总图、GeoJSON、模型管线或管理界面重构而删除第一人称控制。
+
+地点目录的作用是把用户移动到同一张连续地图中的目标附近，而不是切换场景。切换到校园总览后再次返回第一人称，应恢复用户原来的游览位置和方向。
+
 ### 核心原则
 
 1. **一个全局世界坐标系**：所有地形、道路、建筑和设施共用统一的米制坐标，局部模型不得各自建立互不兼容的世界原点。
 2. **先总图，后单体**：先确认校园整体边界、道路骨架、山体高差和岸线关系，再逐栋替换高精度建筑。
 3. **连续空间优先**：任何单体建筑的精细化都不能破坏周边道路、地形、视线和相邻建筑关系。
-4. **场景与资料分离**：地点、坐标、精度和状态存放在 `public/data/campus.masterplan.json`。
-5. **场景与模型分离**：模型路径和生产状态存放在 `public/data/assets.registry.json`。
-6. **事实与推测分离**：坐标、尺寸和建筑身份必须标记为 `placeholder`、`estimated` 或 `verified`。
-7. **素材与许可分离**：照片、地图、测量记录和模型许可统一登记在 `public/data/sources.registry.json`。
-8. **旧版不丢失**：原单文件程序化场景继续作为水下着色、粒子和环境效果参考。
+4. **第一人称优先**：第一人称水下漫游是默认用户体验，校园总览仅为辅助。
+5. **场景与资料分离**：地点、坐标、精度和状态存放在 `public/data/campus.masterplan.json`。
+6. **场景与模型分离**：模型路径和生产状态存放在 `public/data/assets.registry.json`。
+7. **事实与推测分离**：坐标、尺寸和建筑身份必须标记为 `placeholder`、`estimated` 或 `verified`。
+8. **素材与许可分离**：照片、地图、测量记录和模型许可统一登记在 `public/data/sources.registry.json`。
+9. **旧版不丢失**：原单文件程序化场景继续作为水下着色、粒子、环境效果与第一人称操作参考。
 
 ### 推荐的世界组织方式
 
@@ -51,10 +71,12 @@ WholeCampusWorld（唯一连续世界）
 ├── SportsAndOpenSpaces    # 操场、广场、草地和庭院
 ├── Vegetation             # 树木、灌木和地被
 ├── CampusFacilities       # 标牌、路灯、座椅、护栏等
+├── FirstPersonSwim        # 默认第一人称水下游览
+├── CampusOverview         # 辅助总览相机
 └── StreamingRegions       # 仅用于不可见的性能管理
 ```
 
-大型校园应采用流式加载，而不是拆成互不相连的页面：玩家附近加载高精度模型，远处保留低精度 LOD 或轮廓；地形、道路主干和远景地标始终保持连续可见。
+大型校园应采用流式加载，而不是拆成互不相连的页面：用户附近加载高精度模型，远处保留低精度 LOD 或轮廓；地形、道路主干和远景地标始终保持连续可见。
 
 ### 目录职责
 
@@ -62,8 +84,9 @@ WholeCampusWorld（唯一连续世界）
 src/
 ├── assets/       # glTF 资产类型、登记加载与模型加载器
 ├── data/         # 校园总图数据类型和加载器
-├── viewer/       # 连续校园三维浏览、相机、选点与流式加载
-├── world/        # 全局地形、道路网络、岸线和世界装配（后续新增）
+├── geodata/      # 校园道路与建筑轮廓矢量数据
+├── viewer/       # 第一人称漫游、总览相机、选点与流式加载
+├── world/        # 全局地形、道路网络、岸线和世界装配
 ├── main.ts       # 页面装配和数据状态展示
 └── styles.css    # 浏览界面
 
@@ -79,7 +102,7 @@ public/
 ```text
 真实校园总图 / 地形 / 道路骨架
                 ↓
-campus.masterplan.json（统一全局坐标）
+campus.masterplan.json + campus.geodata.geojson
                 ↓
 WholeCampusWorld（唯一连续世界）
                 ↓
@@ -87,19 +110,21 @@ assets.registry.json
                 ↓
 ModelAssetLoader / GLTFLoader / LOD / Streaming
                 ↓
-占位体逐栋替换为精细 GLB，但空间关系保持不变
+第一人称连续游览精细校园
 ```
 
 ### 当前 Alpha 的意义
 
-当前 V2 Alpha 只证明以下事情已经成立：
+当前 V2 Alpha 证明以下事情已经成立：
 
 - 校园地点可以在同一个世界坐标中登记；
 - 工程分区可以独立维护，但不会成为独立空间；
 - 每个地点有自己的精度与来源状态；
 - 建筑模型可以按资产 ID 和路径逐栋接入；
-- 未核验数据会在界面上直接暴露，而不是伪装成准确复原；
-- 后续能够在不重写整个世界的前提下扩展到更多教学楼、宿舍、道路和设施。
+- 建筑与道路轮廓可以通过 GeoJSON 持续替换；
+- 第一人称水下漫游可以与校园总览共存；
+- 切换总览不会永久覆盖第一人称位置；
+- 未核验数据会在界面上直接暴露，而不是伪装成准确复原。
 
 当前占位图只用于验证数据和资产管线。它不能被理解为最终地图结构，也不能以“选择一个地点进入”的方式继续发展。
 
@@ -117,16 +142,36 @@ All terrain, roads, buildings, sports facilities, vegetation, and shoreline elem
 
 The current `zones` are engineering-only partitions for research organization, asset ownership, runtime streaming, LOD control, memory management, and debugging. They are **not separate scenes or levels** and must never create visible borders, loading screens, terrain seams, or teleportation in the final experience.
 
+## Non-removable primary experience: first-person underwater exploration
+
+The default user experience must remain first-person underwater exploration rather than an orbit camera, overhead map, or location-selection interface.
+
+The project must retain:
+
+- WASD movement;
+- Space to ascend;
+- Shift to descend;
+- mouse-drag look controls;
+- wheel-based swim-speed adjustment;
+- underwater movement inertia;
+- terrain, world-boundary, and vertical constraints;
+- continuous travel between campus locations.
+
+The campus overview camera is an auxiliary navigation and development tool only. It must never replace or remove first-person exploration during master-plan, GeoJSON, model-pipeline, or interface refactors.
+
+The location catalog moves the visitor near a target in the same continuous world; it does not load a separate scene. Returning from overview mode must restore the previous first-person position and orientation.
+
 ### Core principles
 
-1. **One global world coordinate system** for every terrain and asset.
-2. **Master plan before individual buildings**: establish campus boundaries, road structure, elevation, and shoreline before detailed replacements.
-3. **Continuous spatial relationships first**: individual detail must not break neighboring roads, terrain, views, or building relationships.
-4. Separate scene data from reference and accuracy records.
-5. Separate model files from placement and production status.
-6. Label facts, estimates, and placeholders explicitly.
-7. Track every source and license independently.
-8. Preserve V1 as a visual-effects reference.
+1. One global metric coordinate system for all terrain and assets.
+2. Master plan before individual buildings.
+3. Continuous spatial relationships before isolated detail.
+4. First-person underwater exploration is the default; overview is auxiliary.
+5. Separate scene placement from factual and accuracy records.
+6. Separate model files from placement and production status.
+7. Label facts, estimates, and placeholders explicitly.
+8. Track every source and license independently.
+9. Preserve V1 as a reference for underwater effects and first-person interaction.
 
 ### World organization
 
@@ -139,9 +184,11 @@ WholeCampusWorld (the only continuous world)
 ├── SportsAndOpenSpaces
 ├── Vegetation
 ├── CampusFacilities
+├── FirstPersonSwim (default experience)
+├── CampusOverview (auxiliary camera)
 └── StreamingRegions (invisible performance partitions only)
 ```
 
 The large campus should use seamless streaming rather than disconnected pages. Nearby assets may load at high fidelity while distant areas use lower LODs, but the terrain, road skeleton, and major silhouettes must remain continuous and visible.
 
-The current Alpha validates the data and asset pipeline only. It must not evolve into a location-selection experience; every future asset must be placed into the same continuous campus world.
+The current Alpha validates that the unified data pipeline, GeoJSON replacement layer, first-person swim controls, and auxiliary overview camera can coexist. It must not evolve into a location-selection experience; every future asset must remain in the same continuous campus world.
