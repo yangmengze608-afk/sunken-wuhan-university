@@ -26,5 +26,42 @@
     "licensed-3d-asset",
     "project-created-texture"
   ],
-  "records": []
+  "records": [
+    {
+      "id": "source-whu-official-profile-2026",
+      "title": "学校简介",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学",
+      "urlOrArchiveReference": "https://www.whu.edu.cn/xxgk/xxjj.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "确认项目对象、学校公开基本信息和整体校园叙述背景，不直接复制视觉素材。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "官方网页可作为事实核验来源，但不能替代测绘数据或建筑尺寸资料。"
+    },
+    {
+      "id": "source-whu-lakefront-planning-2016",
+      "title": "武汉与武大：打造湖山共美的时代梦想",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1002/46587.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["east-lake-shoreline", "whole-campus"],
+      "usagePurpose": "核验校园与东湖岸线、空间轴线和沿湖区域关系，仅用于总图研究。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "文章包含沿湖路段范围与规划描述；具体几何仍须地图或测量资料验证。"
+    },
+    {
+      "id": "source-whu-luojia-architecture-2022",
+      "title": "历史vs建筑：探寻珞珈山校舍90年积淀",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1007/66879.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["old-dormitories", "hundred-step-stairway", "old-library", "whole-campus"],
+      "usagePurpose": "建立历史建筑群的年代、空间和文化背景资料索引，不直接复用网页图片。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "可用于历史背景和资料线索，建筑比例和立面仍需多源交叉核验。"
+    }
+  ]
 }
