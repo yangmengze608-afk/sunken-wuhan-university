@@ -1,0 +1,365 @@
+{
+  "type": "FeatureCollection",
+  "name": "Sunken Luojia Campus GeoData Alpha",
+  "metadata": {
+    "schemaVersion": "1.0.0",
+    "coordinateSpace": "local-cartesian-meters",
+    "originDescriptionZh": "与 whole-campus.layout.json 共用V2临时原点。当前全部要素由工程占位数据转换，不是经纬度、官方地图或测绘成果。",
+    "originDescriptionEn": "Uses the temporary V2 origin shared with whole-campus.layout.json. All current features are converted from engineering placeholders, not geographic coordinates, an official map, or surveyed geometry.",
+    "generatedAt": "2026-07-24",
+    "accuracy": "placeholder",
+    "licenseSummary": "Project-created placeholder geometry. No official or OSM geometry is embedded in this file."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "geo-912-field",
+      "properties": {
+        "id": "geo-912-field",
+        "nameZh": "九一二操场轮廓",
+        "nameEn": "912 Sports Field Footprint",
+        "renderRole": "sports-field",
+        "placeId": "912-sports-field",
+        "height": 0.35,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-197.5, -51], [-12.5, -51], [-12.5, 61], [-197.5, 61], [-197.5, -51]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-old-dormitories",
+      "properties": {
+        "id": "geo-old-dormitories",
+        "nameZh": "老斋舍与樱顶轮廓",
+        "nameEn": "Old Dormitories and Cherry Blossom Castle Footprint",
+        "renderRole": "building",
+        "placeId": "old-dormitories",
+        "height": 31,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-196, -91], [-104, -91], [-104, -53], [-196, -53], [-196, -91]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-old-library",
+      "properties": {
+        "id": "geo-old-library",
+        "nameZh": "老图书馆轮廓",
+        "nameEn": "Old Library Footprint",
+        "renderRole": "building",
+        "placeId": "old-library",
+        "height": 39,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-174, -177.5], [-126, -177.5], [-126, -138.5], [-174, -138.5], [-174, -177.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-main-archway",
+      "properties": {
+        "id": "geo-main-archway",
+        "nameZh": "武汉大学牌坊轮廓",
+        "nameEn": "Wuhan University Archway Footprint",
+        "renderRole": "building",
+        "placeId": "wuhan-university-archway",
+        "height": 19,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[122, 255.5], [158, 255.5], [158, 264.5], [122, 264.5], [122, 255.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-administration-building",
+      "properties": {
+        "id": "geo-administration-building",
+        "nameZh": "行政楼轮廓",
+        "nameEn": "Administration Building Footprint",
+        "renderRole": "building",
+        "placeId": "administration-building",
+        "height": 31,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[99, 24], [181, 24], [181, 52], [99, 52], [99, 24]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-science-hall",
+      "properties": {
+        "id": "geo-science-hall",
+        "nameZh": "理学楼轮廓",
+        "nameEn": "Science Hall Footprint",
+        "renderRole": "building",
+        "placeId": "science-hall",
+        "height": 32,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-4, 97], [44, 97], [44, 139], [-4, 139], [-4, 97]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-fengyuan-building",
+      "properties": {
+        "id": "geo-fengyuan-building",
+        "nameZh": "枫园湖滨教学建筑轮廓",
+        "nameEn": "Fengyuan Lakeside Academic Building Footprint",
+        "renderRole": "building",
+        "placeId": "fengyuan-building",
+        "height": 19,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[244, -81.5], [306, -81.5], [306, -54.5], [244, -54.5], [244, -81.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-liuyi-pavilion",
+      "properties": {
+        "id": "geo-liuyi-pavilion",
+        "nameZh": "六一亭轮廓",
+        "nameEn": "Liuyi Pavilion Footprint",
+        "renderRole": "building",
+        "placeId": "liuyi-pavilion",
+        "height": 11,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-271.5, -61.5], [-258.5, -61.5], [-258.5, -48.5], [-271.5, -48.5], [-271.5, -61.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-cherry-avenue-open-space",
+      "properties": {
+        "id": "geo-cherry-avenue-open-space",
+        "nameZh": "樱花大道连续空间",
+        "nameEn": "Cherry Blossom Avenue Continuous Space",
+        "renderRole": "open-space",
+        "placeId": "cherry-blossom-avenue",
+        "height": 0.35,
+        "width": null,
+        "elevationOffset": 0.4,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由现有工程中心点、长宽和朝向转换的临时轮廓，必须由可追溯地图或测量数据替换。",
+        "notesEn": "Temporary footprint converted from existing engineering center, dimensions, and rotation; it must be replaced by traceable map or survey data."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-13.999, -194], [-14.001, 146], [-26.001, 146], [-25.999, -194], [-13.999, -194]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-road-main-gate-axis",
+      "properties": {
+        "id": "geo-road-main-gate-axis",
+        "nameZh": "主入口连续道路",
+        "nameEn": "Main Gate Continuous Road",
+        "renderRole": "road",
+        "placeId": null,
+        "height": null,
+        "width": 18,
+        "elevationOffset": 0.35,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由V2工程骨架转换的临时路线，必须由可追溯道路数据替换。",
+        "notesEn": "Temporary route converted from the V2 engineering skeleton; it must be replaced by traceable road data."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[140, 300], [132, 225], [105, 150], [70, 70], [10, 10]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-road-cherry-avenue",
+      "properties": {
+        "id": "geo-road-cherry-avenue",
+        "nameZh": "樱花大道道路轴线",
+        "nameEn": "Cherry Blossom Avenue Road Axis",
+        "renderRole": "road",
+        "placeId": "cherry-blossom-avenue",
+        "height": null,
+        "width": 12,
+        "elevationOffset": 0.35,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由V2工程骨架转换的临时路线，必须由可追溯道路数据替换。",
+        "notesEn": "Temporary route converted from the V2 engineering skeleton; it must be replaced by traceable road data."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[130, 10], [40, -5], [-55, -25], [-135, -48], [-175, -92]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-hundred-step-stairway",
+      "properties": {
+        "id": "geo-hundred-step-stairway",
+        "nameZh": "百步梯连续轴线",
+        "nameEn": "Hundred-Step Stairway Axis",
+        "renderRole": "stair",
+        "placeId": "hundred-step-stairway",
+        "height": null,
+        "width": 10,
+        "elevationOffset": 0.35,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由V2工程骨架转换的临时路线，必须由可追溯道路数据替换。",
+        "notesEn": "Temporary route converted from the V2 engineering skeleton; it must be replaced by traceable road data."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-132, -42], [-145, -76], [-150, -112], [-150, -141]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-road-east-lake-edge",
+      "properties": {
+        "id": "geo-road-east-lake-edge",
+        "nameZh": "东湖岸线道路",
+        "nameEn": "East Lake Edge Road",
+        "renderRole": "road",
+        "placeId": null,
+        "height": null,
+        "width": 11,
+        "elevationOffset": 0.35,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "由V2工程骨架转换的临时路线，必须由可追溯道路数据替换。",
+        "notesEn": "Temporary route converted from the V2 engineering skeleton; it must be replaced by traceable road data."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[220, 210], [275, 120], [310, 20], [325, -90], [350, -230]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-east-lake-shoreline-guide",
+      "properties": {
+        "id": "geo-east-lake-shoreline-guide",
+        "nameZh": "东湖岸线校准引导线",
+        "nameEn": "East Lake Shoreline Calibration Guide",
+        "renderRole": "shoreline-guide",
+        "placeId": "east-lake-shoreline",
+        "height": null,
+        "width": 6,
+        "elevationOffset": 0.35,
+        "accuracy": "placeholder",
+        "sourceStatus": "collecting",
+        "sourceIds": ["source-internal-placeholder-v2"],
+        "licenseStatus": "project-created-placeholder-no-external-geometry",
+        "replacementStatus": "placeholder",
+        "notesZh": "仅标记岸线校准方向，不代表真实岸线。",
+        "notesEn": "Marks only the shoreline calibration direction and is not a real shoreline."
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[430, 300], [470, 180], [500, 40], [510, -100], [500, -250], [470, -380]]
+      }
+    }
+  ]
+}
