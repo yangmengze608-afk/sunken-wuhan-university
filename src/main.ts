@@ -4,14 +4,18 @@ import { loadCampusDataset } from './data/loadCampus';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { CampusViewer } from './viewer/CampusViewer';
 
-const viewport = document.querySelector<HTMLElement>('#viewport');
-const status = document.querySelector<HTMLElement>('#dataset-status');
-const placeList = document.querySelector<HTMLElement>('#place-list');
-const detail = document.querySelector<HTMLElement>('#place-detail');
-
-if (!viewport || !status || !placeList || !detail) {
-  throw new Error('V2 页面缺少必要的界面节点');
+function requireElement<T extends HTMLElement>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`V2 页面缺少必要节点：${selector}`);
+  }
+  return element;
 }
+
+const viewport = requireElement<HTMLElement>('#viewport');
+const status = requireElement<HTMLElement>('#dataset-status');
+const placeList = requireElement<HTMLElement>('#place-list');
+const detail = requireElement<HTMLElement>('#place-detail');
 
 const accuracyLabels: Record<AccuracyLevel, string> = {
   placeholder: '工程占位',
