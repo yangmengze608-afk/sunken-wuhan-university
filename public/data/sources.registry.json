@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "noticeZh": "本文件只登记可追溯来源。搜索结果缩略图、无作者照片、来源不明模型和未经授权的官方视觉资产不得直接进入正式资产管线。组织结构资料不能替代空间坐标；历史地图不能冒充当前现状。",
   "noticeEn": "Only traceable sources belong in this registry. Search-result thumbnails, unattributed photographs, unknown-origin models, and unauthorized official visual assets must not enter the production asset pipeline. Organizational sources cannot substitute for spatial coordinates, and historical maps must not be presented as current conditions.",
   "requiredFields": [
@@ -25,9 +25,22 @@
     "academic-publication",
     "measurement-note",
     "licensed-3d-asset",
-    "project-created-texture"
+    "project-created-texture",
+    "project-created-geometry"
   ],
   "records": [
+    {
+      "id": "source-internal-placeholder-v2",
+      "title": "V2 工程占位轮廓",
+      "sourceType": "project-created-geometry",
+      "publisherOrAuthor": "Sunken Luojia project",
+      "urlOrArchiveReference": "public/data/campus.geodata.geojson",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "将现有中心点、长宽、朝向和道路骨架转换成可替换的 GeoJSON 工程轮廓，用于测试矢量导入、渲染和校验管线。",
+      "licenseOrPermission": "project-created-placeholder",
+      "verificationNotes": "不包含武汉大学官方地图、OSM 或第三方测绘几何。所有要素均为 placeholder，不得称为真实校园轮廓。"
+    },
     {
       "id": "source-whu-official-profile-2026",
       "title": "学校简介",
@@ -39,6 +52,18 @@
       "usagePurpose": "确认项目对象、学校公开基本信息和整体校园叙述背景，不直接复制视觉素材。",
       "licenseOrPermission": "reference-only-no-asset-reuse",
       "verificationNotes": "官方网页确认校园环绕东湖、坐拥珞珈山，并有26栋早期建筑列为全国重点文物保护单位；不能替代测绘数据或建筑尺寸资料。"
+    },
+    {
+      "id": "source-whu-official-map-portal-2026",
+      "title": "Wuhan University English website map portal",
+      "sourceType": "official-map",
+      "publisherOrAuthor": "Wuhan University",
+      "urlOrArchiveReference": "https://en.whu.edu.cn/",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "记录武汉大学英文官网提供的 Map 导航入口，作为后续人工核验校园地点和道路关系的官方候选来源。",
+      "licenseOrPermission": "reference-only-map-portal-no-data-reuse-approved",
+      "verificationNotes": "官网页面存在 Map 入口，但当前尚未取得可下载、可复用且带明确许可的矢量数据；不得把网页地图抓取结果直接写入正式 GeoJSON。"
     },
     {
       "id": "source-whu-schools-2026",
