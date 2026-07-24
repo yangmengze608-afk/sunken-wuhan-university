@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { CampusDataset, CampusPlace } from '../data/types';
+import { sampleTerrainHeight, WholeCampusWorld } from '../world/WholeCampusWorld';
+import type { WholeCampusLayout } from '../world/types';
 
 const CATEGORY_COLORS: Record<CampusPlace['category'], number> = {
   'historic-building': 0xb8a276,
@@ -28,13 +30,18 @@ export class CampusViewer {
   constructor(
     private readonly container: HTMLElement,
     private readonly dataset: CampusDataset,
+    private readonly layout: WholeCampusLayout,
     private readonly onSelect: (place: CampusPlace) => void,
   ) {
     this.scene.background = new THREE.Color(0x041820);
-    this.scene.fog = new THREE.FogExp2(0x09242c, 0.0025);
+    this.scene.fog = new THREE.FogExp2(0x09242c, 0.00135);
 
-    this.camera = new THREE.PerspectiveCamera(48, 1, 0.1, 3000);
-    this.camera.position.set(320, 260, 420);
+    const worldWidth = layout.bounds.maxX - layout.bounds.minX;
+    const worldDepth = layout.bounds.maxZ - layout.bounds.minZ;
+    const overviewDistance = Math.max(worldWidth, worldDepth) * 0.78;
+
+    this.camera = new THREE.PerspectiveCamera(48, 1, 0.1, 6000);
+    this.camera.position.set(overviewDistance * 0.7, overviewDistance * 0.52, overviewDistance);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -49,12 +56,12 @@ export class CampusViewer {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.06;
     this.controls.minDistance = 35;
-    this.controls.maxDistance = 1200;
+    this.controls.maxDistance = Math.max(worldWidth, worldDepth) * 1.8;
     this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.controls.target.set(0, 0, 0);
+    this.controls.target.set(0, 20, 0);
 
-    this.addEnvironment();
-    this.addZones();
+    const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
+    new WholeCampusWorld(this.scene, layout, dataset, debugZones);
     this.addPlaces();
 
     this.renderer.domElement.addEventListener('click', this.handleClick);
@@ -84,7 +91,7 @@ export class CampusViewer {
     }
 
     this.selectedId = placeId;
-    const target = new THREE.Vector3(place.position.x, place.position.y, place.position.z);
+    const target = mesh.position.clone();
     const extent = Math.max(place.dimensions.width, place.dimensions.depth, place.dimensions.height, 20);
     this.controls.target.copy(target);
     this.camera.position.set(target.x + extent * 1.8, target.y + extent * 1.35, target.z + extent * 1.8);
@@ -112,52 +119,6 @@ export class CampusViewer {
     if (placeId) this.focusPlace(placeId);
   };
 
-  private addEnvironment(): void {
-    const hemisphere = new THREE.HemisphereLight(0x9ad8cf, 0x061319, 1.7);
-    this.scene.add(hemisphere);
-
-    const sun = new THREE.DirectionalLight(0xd7efe8, 3.1);
-    sun.position.set(180, 420, 160);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -500;
-    sun.shadow.camera.right = 500;
-    sun.shadow.camera.top = 500;
-    sun.shadow.camera.bottom = -500;
-    this.scene.add(sun);
-
-    const terrain = new THREE.Mesh(
-      new THREE.PlaneGeometry(900, 760, 1, 1),
-      new THREE.MeshStandardMaterial({ color: 0x173330, roughness: 0.96, metalness: 0.02 }),
-    );
-    terrain.rotation.x = -Math.PI / 2;
-    terrain.position.y = -1;
-    terrain.receiveShadow = true;
-    this.scene.add(terrain);
-
-    const grid = new THREE.GridHelper(900, 90, 0x47786f, 0x244840);
-    grid.position.y = -0.7;
-    const materials = Array.isArray(grid.material) ? grid.material : [grid.material];
-    for (const material of materials) {
-      material.transparent = true;
-      material.opacity = 0.18;
-    }
-    this.scene.add(grid);
-  }
-
-  private addZones(): void {
-    for (const zone of this.dataset.zones) {
-      const geometry = new THREE.BoxGeometry(zone.size.width, 1, zone.size.depth);
-      const edges = new THREE.EdgesGeometry(geometry);
-      const line = new THREE.LineSegments(
-        edges,
-        new THREE.LineBasicMaterial({ color: 0x5ea897, transparent: true, opacity: 0.25 }),
-      );
-      line.position.set(zone.center.x, zone.center.y, zone.center.z);
-      this.scene.add(line);
-    }
-  }
-
   private addPlaces(): void {
     for (const place of this.dataset.places) {
       const height = Math.max(place.dimensions.height, 0.4);
@@ -170,7 +131,12 @@ export class CampusViewer {
         opacity: place.reconstructionStatus === 'placeholder' ? 0.74 : 1,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(place.position.x, place.position.y + height / 2, place.position.z);
+      const terrainY = sampleTerrainHeight(this.layout, place.position.x, place.position.z);
+      mesh.position.set(
+        place.position.x,
+        terrainY + place.position.y + height / 2,
+        place.position.z,
+      );
       mesh.rotation.y = place.rotationY;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
