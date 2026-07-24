@@ -14,15 +14,22 @@ const ROLE_COLORS: Record<CampusGeoFeature['properties']['renderRole'], number> 
 
 function polygonCentroid(ring: [number, number][]): [number, number] {
   if (ring.length === 0) return [0, 0];
-  const sum = ring.reduce(
+  const uniqueRing = ring.length > 1
+    && ring[0]?.[0] === ring[ring.length - 1]?.[0]
+    && ring[0]?.[1] === ring[ring.length - 1]?.[1]
+    ? ring.slice(0, -1)
+    : ring;
+  const sum = uniqueRing.reduce(
     (current, coordinate) => [current[0] + coordinate[0], current[1] + coordinate[1]] as [number, number],
     [0, 0] as [number, number],
   );
-  return [sum[0] / ring.length, sum[1] / ring.length];
+  return [sum[0] / Math.max(uniqueRing.length, 1), sum[1] / Math.max(uniqueRing.length, 1)];
 }
 
 export class CampusGeoDataLayer {
   readonly representedPlaceIds = new Set<string>();
+  readonly placeObjects = new Map<string, THREE.Object3D>();
+  readonly clickableObjects: THREE.Object3D[] = [];
   readonly featureCount: number;
   readonly buildingFootprintCount: number;
   readonly routeCount: number;
@@ -112,6 +119,11 @@ export class CampusGeoDataLayer {
     mesh.userData.geoFeatureId = feature.properties.id;
     mesh.userData.placeId = feature.properties.placeId;
     root.add(mesh);
+    this.clickableObjects.push(mesh);
+
+    if (feature.properties.placeId) {
+      this.placeObjects.set(feature.properties.placeId, mesh);
+    }
   }
 
   private addLineString(
@@ -128,6 +140,10 @@ export class CampusGeoDataLayer {
       transparent: feature.properties.accuracy === 'placeholder',
       opacity: feature.properties.accuracy === 'placeholder' ? 0.78 : 1,
     });
+    const featureGroup = new THREE.Group();
+    featureGroup.name = feature.properties.nameZh;
+    featureGroup.userData.geoFeatureId = feature.properties.id;
+    featureGroup.userData.placeId = feature.properties.placeId;
 
     for (let index = 0; index < feature.geometry.coordinates.length - 1; index += 1) {
       const start = feature.geometry.coordinates[index];
@@ -158,7 +174,13 @@ export class CampusGeoDataLayer {
       segment.receiveShadow = true;
       segment.userData.geoFeatureId = feature.properties.id;
       segment.userData.placeId = feature.properties.placeId;
-      root.add(segment);
+      featureGroup.add(segment);
+      this.clickableObjects.push(segment);
+    }
+
+    root.add(featureGroup);
+    if (feature.properties.placeId) {
+      this.placeObjects.set(feature.properties.placeId, featureGroup);
     }
   }
 }
