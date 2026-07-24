@@ -57,7 +57,7 @@ V2 最终必须由一张连续、统一、可追溯的武汉大学校园总图�
 
 ### 坐标原则
 
-GeoJSON 当前使用 `[x, z]` 的本地米制坐标，而不是经纬度。所有图层共用 `whole-campus.layout.json` 的唯一世界原点。
+GeoJSON 当前使用 `[x, z]` 的本地米制坐标，而不是经纬度。所有图层共用 `world.layout.json` 的唯一世界原点。
 
 导入经纬度数据时必须：
 
@@ -118,4 +118,4 @@ A Feature that still references `source-internal-placeholder-v2` can never be ma
 
 ### Coordinate policy
 
-The current GeoJSON uses local metric `[x, z]` coordinates rather than longitude and latitude. Every layer shares the single origin defined by `whole-campus.layout.json`. Raw WGS84 source data, the chosen origin, projection method, rotation, scale, and elevation treatment must all be recorded during import.
+The current GeoJSON uses local metric `[x, z]` coordinates rather than longitude and latitude. Every layer shares the single origin defined by `world.layout.json`. Raw WGS84 source data, the chosen origin, projection method, rotation, scale, and elevation treatment must all be recorded during import.
