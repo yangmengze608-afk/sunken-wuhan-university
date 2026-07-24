@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0.0",
+  "worldId": "whole-wuhan-university",
+  "nameZh": "武汉大学连续校园世界",
+  "nameEn": "Continuous Wuhan University Campus World",
+  "accuracy": "placeholder",
+  "bounds": {
+    "minX": -800,
+    "maxX": 800,
+    "minZ": -650,
+    "maxZ": 650,
+    "minY": -20,
+    "maxY": 180
+  },
+  "terrain": {
+    "baseElevation": 0,
+    "segmentsX": 120,
+    "segmentsZ": 100,
+    "hills": [
+      { "id": "luojia-main", "center": { "x": -165, "z": -120 }, "radiusX": 320, "radiusZ": 285, "height": 74 },
+      { "id": "south-ridge", "center": { "x": -130, "z": 245 }, "radiusX": 360, "radiusZ": 230, "height": 24 },
+      { "id": "east-slope", "center": { "x": 245, "z": -55 }, "radiusX": 360, "radiusZ": 300, "height": 18 }
+    ]
+  },
+  "shoreline": {
+    "waterLevel": -4,
+    "eastBoundaryX": 520,
+    "transitionWidth": 180
+  },
+  "roads": [
+    {
+      "id": "main-gate-axis",
+      "nameZh": "主入口连续轴线",
+      "nameEn": "Main Gate Continuous Axis",
+      "width": 18,
+      "accuracy": "placeholder",
+      "points": [
+        { "x": 140, "z": 300 },
+        { "x": 132, "z": 225 },
+        { "x": 105, "z": 150 },
+        { "x": 70, "z": 70 },
+        { "x": 10, "z": 10 }
+      ]
+    },
+    {
+      "id": "cherry-avenue-spine",
+      "nameZh": "樱花大道骨架",
+      "nameEn": "Cherry Blossom Avenue Spine",
+      "width": 12,
+      "accuracy": "placeholder",
+      "points": [
+        { "x": 130, "z": 10 },
+        { "x": 40, "z": -5 },
+        { "x": -55, "z": -25 },
+        { "x": -135, "z": -48 },
+        { "x": -175, "z": -92 }
+      ]
+    },
+    {
+      "id": "heritage-climb",
+      "nameZh": "历史建筑上山连接",
+      "nameEn": "Heritage Hill Connection",
+      "width": 9,
+      "accuracy": "placeholder",
+      "points": [
+        { "x": -105, "z": 8 },
+        { "x": -132, "z": -42 },
+        { "x": -150, "z": -83 },
+        { "x": -150, "z": -125 },
+        { "x": -150, "z": -165 }
+      ]
+    },
+    {
+      "id": "east-lake-edge-road",
+      "nameZh": "东湖岸线道路骨架",
+      "nameEn": "East Lake Edge Road Spine",
+      "width": 11,
+      "accuracy": "placeholder",
+      "points": [
+        { "x": 220, "z": 210 },
+        { "x": 275, "z": 120 },
+        { "x": 310, "z": 20 },
+        { "x": 325, "z": -90 },
+        { "x": 350, "z": -230 }
+      ]
+    }
+  ],
+  "streaming": {
+    "cellSize": 240,
+    "highDetailRadius": 360,
+    "preloadRadius": 560,
+    "policyZh": "分区仅用于后台流式加载。用户始终处于同一张连续校园地图中。",
+    "policyEn": "Regions are used only for background streaming. The user always remains in one continuous campus world."
+  }
+}
