@@ -1,8 +1,10 @@
-name: Deploy V2 to GitHub Pages
+name: Deploy legacy and V2 to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - agent/v2-game-rebuild
   workflow_dispatch:
 
 permissions:
@@ -29,8 +31,37 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build
+      - name: Validate and build V2
         run: npm run build
+
+      - name: Assemble dual-version Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site/v2
+
+          # Keep the existing procedural version at the repository root.
+          cp "水下武汉大学.html" site/水下武汉大学.html
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="zh-CN">
+            <head>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <meta http-equiv="refresh" content="0; url=./水下武汉大学.html" />
+              <title>水下武汉大学</title>
+            </head>
+            <body>
+              <p><a href="./水下武汉大学.html">打开原版水下武汉大学</a></p>
+              <p><a href="./v2/">打开 V2 连续校园预览</a></p>
+            </body>
+          </html>
+          HTML
+
+          # Publish the latest V2 build at a stable /v2/ URL.
+          cp -R dist/. site/v2/
+          touch site/.nojekyll
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -38,7 +69,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     environment:
