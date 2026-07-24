@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { CampusDataset, CampusPlace } from '../data/types';
-import { sampleTerrainHeight, WholeCampusWorld } from '../world/WholeCampusWorld';
+import type { CampusCoverageDataset } from '../world/coverageTypes';
+import { sampleTerrainHeight } from '../world/terrain';
+import { WholeCampusWorld } from '../world/WholeCampusWorld';
 import type { WholeCampusLayout } from '../world/types';
 
 const CATEGORY_COLORS: Record<CampusPlace['category'], number> = {
@@ -31,6 +33,7 @@ export class CampusViewer {
     private readonly container: HTMLElement,
     private readonly dataset: CampusDataset,
     private readonly layout: WholeCampusLayout,
+    coverage: CampusCoverageDataset,
     private readonly onSelect: (place: CampusPlace) => void,
   ) {
     this.scene.background = new THREE.Color(0x041820);
@@ -61,7 +64,7 @@ export class CampusViewer {
     this.controls.target.set(0, 20, 0);
 
     const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
-    new WholeCampusWorld(this.scene, layout, dataset, debugZones);
+    new WholeCampusWorld(this.scene, layout, dataset, coverage, debugZones);
     this.addPlaces();
 
     this.renderer.domElement.addEventListener('click', this.handleClick);
