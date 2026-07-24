@@ -50,6 +50,27 @@ V2 在 `agent/v2-game-rebuild` 分支开发，目标是从“程序化概念场�
 6. 建立来源记录、版本记录和资产精度等级；
 7. 在网页端保留可漫游、可查看地点信息的轻量交互。
 
+### V2 Alpha 已建立
+
+当前 V2 分支已经包含：
+
+- Vite + TypeScript + Three.js 工程入口；
+- 校园分区与重点地点总图数据；
+- 11 个优先地点的坐标、精度、资料和模型状态；
+- 建筑资产登记表与 glTF 模型加载器；
+- 资料来源和许可证登记表；
+- 可点击查看地点状态的三维占位浏览器；
+- GitHub Actions 构建检查与 Pages 部署流程；
+- 建筑模型、PBR 材质、LOD、比例与版权规范。
+
+当前坐标和尺寸大多仍为 `placeholder`，只用于建立工程管线，不能视为已完成的真实测绘成果。
+
+架构与资产规范：
+
+- [V2 架构说明](docs/ARCHITECTURE.md)
+- [建筑资产标准](docs/ASSET_STANDARDS.md)
+- [模型目录说明](public/models/README.md)
+
 ### 建设优先级
 
 第一阶段优先补齐武汉大学最具辨识度的核心空间：
@@ -90,19 +111,23 @@ V2 在 `agent/v2-game-rebuild` 分支开发，目标是从“程序化概念场�
 - 为水下叙事进行的艺术化处理；
 - 尚待验证或替换的临时模型。
 
-### 运行当前版本
+### 运行 V2
 
-直接打开 `水下武汉大学.html`，或启动静态服务器：
+需要 Node.js 20.19 或更高版本：
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm run dev
 ```
 
-然后访问：
+生产构建：
 
-```text
-http://localhost:8000/水下武汉大学.html
+```bash
+npm run build
+npm run preview
 ```
+
+旧版程序化场景仍保留在 `水下武汉大学.html`，可以作为水下着色器、鱼群、气泡、水母和环境音的迁移参考。
 
 ### 独立项目声明
 
@@ -161,6 +186,27 @@ Core directions:
 6. Maintain source records, version history, and asset-confidence levels;
 7. Preserve lightweight web-based exploration and location information.
 
+### V2 Alpha Foundation
+
+The V2 branch now includes:
+
+- a Vite + TypeScript + Three.js application entry;
+- zone-based campus master-plan data;
+- coordinate, accuracy, source, and model states for 11 priority locations;
+- a 3D asset registry and glTF model-loading pipeline;
+- a source and licensing registry;
+- a clickable placeholder viewer exposing reconstruction status;
+- GitHub Actions build checks and a Pages deployment workflow;
+- standards for model scale, PBR materials, LODs, accuracy, and copyright handling.
+
+Most current coordinates and dimensions remain `placeholder` values. They establish the engineering pipeline and must not be treated as surveyed campus data.
+
+Documentation:
+
+- [V2 architecture](docs/ARCHITECTURE.md)
+- [3D asset standards](docs/ASSET_STANDARDS.md)
+- [Model directory guide](public/models/README.md)
+
 ### Reconstruction Priorities
 
 The first stage focuses on the most recognizable core areas:
@@ -201,19 +247,23 @@ The project will clearly distinguish between:
 - artistic changes made for the underwater narrative;
 - temporary models that still require verification or replacement.
 
-### Running the Current Version
+### Running V2
 
-Open `水下武汉大学.html` directly, or run a static server:
+Node.js 20.19 or newer is required:
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm run dev
 ```
 
-Then visit:
+Production build:
 
-```text
-http://localhost:8000/水下武汉大学.html
+```bash
+npm run build
+npm run preview
 ```
+
+The original procedural scene remains available in `水下武汉大学.html` as a migration reference for underwater shaders, fish, bubbles, jellyfish, and ambient audio.
 
 ### Independent Project Disclaimer
 
