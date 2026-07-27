@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { createOldLibraryDetailed } from './HeritageCoreBlockouts';
 
+const VERIFIED_MAIN_ROOF_SPAN_METERS = 18;
+const ROOF_SPAN_TOLERANCE_METERS = 0.05;
+
 const materials = {
   brick: new THREE.MeshStandardMaterial({ color: 0x625f57, roughness: 0.96, metalness: 0 }),
   stone: new THREE.MeshStandardMaterial({ color: 0x8d897d, roughness: 0.92, metalness: 0.01 }),
@@ -29,16 +32,80 @@ function addHipRoof(
   depth: number,
   height: number,
   position: [number, number, number],
+  name?: string,
 ): THREE.Mesh {
   const geometry = new THREE.CylinderGeometry(0.08, 1, 1, 4, 1, false);
   geometry.rotateY(Math.PI / 4);
   const mesh = new THREE.Mesh(geometry, materials.tile);
   mesh.scale.set(width * 0.72, height, depth * 0.72);
   mesh.position.set(...position);
+  if (name) mesh.name = name;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
+}
+
+function calibratePlanSpan(
+  roof: THREE.Mesh,
+  targetSpanMeters: number,
+): { spanX: number; spanZ: number; maximumResidual: number } {
+  roof.updateMatrixWorld(true);
+  const initialSize = new THREE.Box3().setFromObject(roof).getSize(new THREE.Vector3());
+  if (initialSize.x <= 0 || initialSize.z <= 0) {
+    throw new Error(`无法校准屋顶跨度：${roof.name || 'unnamed roof'}`);
+  }
+
+  roof.scale.x *= targetSpanMeters / initialSize.x;
+  roof.scale.z *= targetSpanMeters / initialSize.z;
+  roof.updateMatrixWorld(true);
+
+  const calibratedSize = new THREE.Box3().setFromObject(roof).getSize(new THREE.Vector3());
+  const residualX = Math.abs(calibratedSize.x - targetSpanMeters);
+  const residualZ = Math.abs(calibratedSize.z - targetSpanMeters);
+  const maximumResidual = Math.max(residualX, residualZ);
+
+  roof.userData.calibration = {
+    dimensionIds: ['main-roof-structural-span-x', 'main-roof-structural-span-z'],
+    targetSpanMeters,
+    calibratedSpanX: calibratedSize.x,
+    calibratedSpanZ: calibratedSize.z,
+    maximumResidualMeters: maximumResidual,
+    toleranceMeters: ROOF_SPAN_TOLERANCE_METERS,
+    sourceIds: ['source-jaabe-old-library-roof-2022'],
+  };
+
+  if (maximumResidual > ROOF_SPAN_TOLERANCE_METERS) {
+    throw new Error(`老图书馆主屋顶跨度校准残差超限：${maximumResidual.toFixed(3)}m`);
+  }
+
+  return {
+    spanX: calibratedSize.x,
+    spanZ: calibratedSize.z,
+    maximumResidual,
+  };
+}
+
+function findDetailedMainRoof(group: THREE.Group): THREE.Mesh {
+  let selected: THREE.Mesh | null = null;
+  group.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    if (!(object.geometry instanceof THREE.CylinderGeometry)) return;
+    if (Math.abs(object.position.y - 45.4) > 0.4) return;
+    selected = object;
+  });
+
+  if (!selected) throw new Error('老图书馆 LOD0 未找到中央八角屋顶');
+  selected.name = 'OldLibraryMainOctagonalRoofLOD0';
+  return selected;
+}
+
+function createOldLibraryLod0(): THREE.Group {
+  const group = createOldLibraryDetailed();
+  const roof = findDetailedMainRoof(group);
+  group.userData.roofCalibration = calibratePlanSpan(roof, VERIFIED_MAIN_ROOF_SPAN_METERS);
+  group.userData.fidelityLevel = 'LOD0-L3-detail-calibrated-roof';
+  return group;
 }
 
 function createOldLibraryLod1(): THREE.Group {
@@ -65,7 +132,14 @@ function createOldLibraryLod1(): THREE.Group {
   tower.castShadow = true;
   tower.receiveShadow = true;
   group.add(tower);
-  addHipRoof(group, 29, 29, 8.2, [0, 45.4, -1]);
+  const mainRoof = addHipRoof(
+    group,
+    29,
+    29,
+    8.2,
+    [0, 45.4, -1],
+    'OldLibraryMainOctagonalRoofLOD1',
+  );
 
   for (const x of [-22.5, 22.5]) {
     const corner = new THREE.Mesh(
@@ -81,7 +155,8 @@ function createOldLibraryLod1(): THREE.Group {
     addBox(group, [2.5, 3.2, 0.28], [x, 15, 16.25], materials.timber);
   }
 
-  group.userData.fidelityLevel = 'LOD1-structure';
+  group.userData.roofCalibration = calibratePlanSpan(mainRoof, VERIFIED_MAIN_ROOF_SPAN_METERS);
+  group.userData.fidelityLevel = 'LOD1-structure-calibrated-roof';
   return group;
 }
 
@@ -103,9 +178,17 @@ function createOldLibraryLod2(): THREE.Group {
   tower.rotation.y = Math.PI / 8;
   tower.castShadow = true;
   group.add(tower);
-  addHipRoof(group, 31, 31, 9.2, [0, 49, -1]);
+  const mainRoof = addHipRoof(
+    group,
+    31,
+    31,
+    9.2,
+    [0, 49, -1],
+    'OldLibraryMainOctagonalRoofLOD2',
+  );
 
-  group.userData.fidelityLevel = 'LOD2-silhouette';
+  group.userData.roofCalibration = calibratePlanSpan(mainRoof, VERIFIED_MAIN_ROOF_SPAN_METERS);
+  group.userData.fidelityLevel = 'LOD2-silhouette-calibrated-roof';
   return group;
 }
 
@@ -141,6 +224,11 @@ function createCalibrationOverlay(): THREE.Group {
     heightMeters: 62.5,
     status: 'estimated-from-current-procedural-model',
   };
+  overlay.userData.verifiedRoofSpan = {
+    x: VERIFIED_MAIN_ROOF_SPAN_METERS,
+    z: VERIFIED_MAIN_ROOF_SPAN_METERS,
+    sourceIds: ['source-jaabe-old-library-roof-2022'],
+  };
 
   const box = new THREE.Box3(
     new THREE.Vector3(-43.25, 0, -26),
@@ -165,6 +253,20 @@ function createCalibrationOverlay(): THREE.Group {
     new THREE.Vector3(46.5, 62.5, 36),
     0xd98278,
   );
+
+  const halfSpan = VERIFIED_MAIN_ROOF_SPAN_METERS / 2;
+  addAxisLine(
+    overlay,
+    new THREE.Vector3(-halfSpan, 46.2, -1),
+    new THREE.Vector3(halfSpan, 46.2, -1),
+    0x63e6ff,
+  );
+  addAxisLine(
+    overlay,
+    new THREE.Vector3(0, 46.8, -1 - halfSpan),
+    new THREE.Vector3(0, 46.8, -1 + halfSpan),
+    0x63e6ff,
+  );
   return overlay;
 }
 
@@ -174,10 +276,14 @@ export function createOldLibraryProductionAsset(): THREE.Group {
   root.userData.fidelityLevel = 'L3';
   root.userData.targetFidelityLevel = 'L5';
   root.userData.lodDistancesMeters = [0, 180, 420];
+  root.userData.verifiedDimensions = {
+    mainRoofStructuralSpanMeters: [18, 18],
+    sourceIds: ['source-jaabe-old-library-roof-2022'],
+  };
 
   const lod = new THREE.LOD();
   lod.name = 'Old Library LOD Controller';
-  lod.addLevel(createOldLibraryDetailed(), 0);
+  lod.addLevel(createOldLibraryLod0(), 0);
   lod.addLevel(createOldLibraryLod1(), 180);
   lod.addLevel(createOldLibraryLod2(), 420);
   root.add(lod);
