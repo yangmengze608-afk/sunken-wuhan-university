@@ -1,4 +1,8 @@
 import './styles.css';
+import {
+  loadCalibrationRegistry,
+  type CalibrationRecord,
+} from './data/calibrationRegistry';
 import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
 import { loadFidelityRegistry, type FidelityRecord } from './data/fidelityRegistry';
@@ -95,11 +99,34 @@ function applyViewMode(mode: ViewMode): void {
   setCatalogOpen(!firstPerson);
 }
 
+function renderCalibration(calibration: CalibrationRecord | undefined): string {
+  if (!calibration) return '';
+  const envelope = calibration.engineeringEnvelope;
+  const dimensions = calibration.dimensions
+    .slice(0, 4)
+    .map((dimension) => (
+      `<li>${dimension.labelZh}：<strong>${dimension.valueMeters}m</strong> · ${dimension.status}</li>`
+    ))
+    .join('');
+
+  return `
+    <section class="calibration-summary">
+      <p><strong>当前工程包围盒：</strong>${envelope.widthMeters} × ${envelope.depthMeters} × ${envelope.heightMeters}m</p>
+      <p><strong>尺寸性质：</strong>${envelope.status}，仅代表当前程序模型，不是建筑测绘尺寸。</p>
+      <ul>${dimensions}</ul>
+      <p><strong>校准模式：</strong>在当前网址后添加 <code>${calibration.calibrationModeUrlQuery}</code></p>
+      <p><strong>进入 L2 还缺：</strong>${calibration.requiredEvidenceForL2.slice(0, 2).join('；')}</p>
+    </section>
+  `;
+}
+
 function renderDetail(
   place: CampusPlace,
   fidelityByPlace: ReadonlyMap<string, FidelityRecord>,
+  calibrationByPlace: ReadonlyMap<string, CalibrationRecord>,
 ): void {
   const fidelity = fidelityByPlace.get(place.id);
+  const calibration = calibrationByPlace.get(place.id);
   const fidelityBlock = fidelity
     ? `
       <div><span>当前精度</span><b>${fidelity.currentLevel}</b></div>
@@ -123,6 +150,7 @@ function renderDetail(
     <p>${place.notesZh}</p>
     <p>${place.notesEn}</p>
     ${fidelityNotes}
+    ${renderCalibration(calibration)}
     <div class="detail-grid">
       <div><span>坐标可信度</span><b>${accuracyLabels[place.coordinateAccuracy]}</b></div>
       <div><span>模型状态</span><b>${reconstructionLabels[place.reconstructionStatus]}</b></div>
@@ -140,6 +168,7 @@ async function start(): Promise<void> {
       assetRegistry,
       sourceRegistry,
       fidelityRegistry,
+      calibrationRegistry,
       worldLayout,
       coverage,
       geoData,
@@ -148,6 +177,7 @@ async function start(): Promise<void> {
       loadAssetRegistry(),
       loadSourceRegistry(),
       loadFidelityRegistry(),
+      loadCalibrationRegistry(),
       loadWorldLayout(),
       loadCampusCoverage(),
       loadCampusGeoData(),
@@ -176,8 +206,26 @@ async function start(): Promise<void> {
     if (unknownFidelityRecords.length > 0) {
       throw new Error(`精度登记表包含 ${unknownFidelityRecords.length} 个未知地点`);
     }
+    const unknownCalibrationRecords = calibrationRegistry.records.filter(
+      (record) => !placeIds.has(record.placeId),
+    );
+    if (unknownCalibrationRecords.length > 0) {
+      throw new Error(`尺寸校准表包含 ${unknownCalibrationRecords.length} 个未知地点`);
+    }
+    const missingCalibrationSources = calibrationRegistry.records.flatMap((record) => (
+      record.dimensions.flatMap((dimension) => (
+        dimension.sourceIds.filter((sourceId) => !sourceIds.has(sourceId))
+      ))
+    ));
+    if (missingCalibrationSources.length > 0) {
+      throw new Error(`尺寸校准表引用了 ${missingCalibrationSources.length} 个未登记来源`);
+    }
+
     const fidelityByPlace = new Map(
       fidelityRegistry.records.map((record) => [record.placeId, record] as const),
+    );
+    const calibrationByPlace = new Map(
+      calibrationRegistry.records.map((record) => [record.placeId, record] as const),
     );
 
     const placesOutsideWorld = dataset.places.filter(
@@ -210,7 +258,7 @@ async function start(): Promise<void> {
       coverage,
       geoData,
       (place) => {
-        renderDetail(place, fidelityByPlace);
+        renderDetail(place, fidelityByPlace, calibrationByPlace);
         for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
           button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
         }
@@ -271,7 +319,7 @@ async function start(): Promise<void> {
       <h2>${worldLayout.nameZh}</h2>
       <h3>${worldLayout.nameEn}</h3>
       <p>第一人称水下游览是默认主模式。点击画面锁定鼠标，WASD 游动，E 上浮，Q 或 Shift 下潜，滚轮调速。</p>
-      <p>校园总览只用于辅助定位。老图书馆已进入 L3 立面细化样板，最终目标为具有测量与误差记录的 L5 1:1 高精度资产。</p>
+      <p>老图书馆已使用 LOD0、LOD1、LOD2 自动切换，并进入程序化 PBR 与尺寸校准阶段。最终 L5 仍必须由图纸、测量或摄影测量交叉核验。</p>
     `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
