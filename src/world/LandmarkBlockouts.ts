@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import type { CampusDataset, CampusPlace } from '../data/types';
+import {
+  createAdministrationBuildingDetailed,
+  createScienceHallDetailed,
+} from './AcademicCoreBlockouts';
 import { attachCollisionBoxes, collectWorldCollisionBoxes } from './collision';
 import { HeritageCoreContextLayer } from './HeritageCoreContext';
 import {
@@ -18,6 +22,8 @@ const CORE_LANDMARK_IDS = [
   'hundred-step-stairway',
   'old-library',
   'wuhan-university-archway',
+  'administration-building',
+  'science-hall',
 ] as const;
 
 const materials = {
@@ -148,6 +154,8 @@ export class LandmarkBlockoutLayer {
       'hundred-step-stairway': createHundredStepsDetailed,
       'old-library': createOldLibraryDetailed,
       'wuhan-university-archway': createArchway,
+      'administration-building': createAdministrationBuildingDetailed,
+      'science-hall': createScienceHallDetailed,
     };
 
     for (const placeId of CORE_LANDMARK_IDS) {
