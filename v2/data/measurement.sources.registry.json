@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyZh": "本登记表只保存能够约束绝对尺寸、面积、跨度或比例的来源。照片观感、旅游介绍和未定标示意图不得作为 verified 尺寸证据。",
+  "policyEn": "This registry only contains sources that constrain absolute dimensions, areas, spans, or scale. Visual impressions, tourism descriptions, and unscaled diagrams must not support verified dimensions.",
+  "records": [
+    {
+      "id": "source-jaabe-old-library-roof-2022",
+      "title": "The design practice of the roof structure of the old library of early architecture in Wuhan University",
+      "sourceType": "academic-publication",
+      "publisherOrAuthor": "Akbar Askar, Qiaohui Tong, Qiguo Li and Yiyao Tang / Journal of Asian Architecture and Building Engineering",
+      "urlOrArchiveReference": "https://doi.org/10.1080/13467581.2022.2116939",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library"],
+      "licenseOrPermission": "CC-BY-4.0",
+      "measurementClaims": [
+        {
+          "claimId": "old-library-main-roof-structural-span",
+          "value": [18, 18],
+          "unit": "meter",
+          "status": "verified-published-drawing-derived",
+          "descriptionZh": "论文依据武汉大学档案馆结构图纸，将老图书馆主楼屋顶结构跨度列为18m×18m。",
+          "descriptionEn": "The paper lists the main roof structural span as 18 m by 18 m from Wuhan University archival structural drawings."
+        },
+        {
+          "claimId": "old-library-plan-composition",
+          "value": "I-shaped central main building with four auxiliary front/rear wing buildings",
+          "unit": "semantic",
+          "status": "verified-published-description",
+          "descriptionZh": "论文将平面描述为工字形，由中央主楼和前后翼的四座附楼组成。",
+          "descriptionEn": "The plan is described as I-shaped, composed of a central main building and four auxiliary buildings on the front and rear wings."
+        }
+      ],
+      "verificationNotes": "论文为开放获取，明确说明研究团队在2015年开展详细测绘，并综合扫描整理武汉大学档案馆保存的建筑与结构图纸。18m跨度可用于主屋顶定标；论文中的其他数值仍需逐项解释其口径。"
+    },
+    {
+      "id": "source-whu-campus-life-old-library-area",
+      "title": "Campus Life – Wuhan University",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "Wuhan University",
+      "urlOrArchiveReference": "https://en.whu.edu.cn/undergraduate/Admissions/Campus_Life.htm",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library"],
+      "licenseOrPermission": "reference-only-no-visual-asset-reuse",
+      "measurementClaims": [
+        {
+          "claimId": "old-library-published-floor-area-whu",
+          "value": 4767,
+          "unit": "square-meter",
+          "status": "published-metric-needs-definition-reconciliation",
+          "descriptionZh": "武汉大学官方页面记载老图书馆floor area为4767平方米。",
+          "descriptionEn": "An official Wuhan University page states a floor area of 4,767 square metres."
+        }
+      ],
+      "verificationNotes": "另一篇建筑学论文引用文献给出6234平方米的useable floor area。两者可能使用不同面积口径，未完成口径核对前不得据此单独缩放整个模型。"
+    }
+  ]
+}
