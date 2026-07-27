@@ -1,0 +1,63 @@
+name: Publish V2 static site
+
+on:
+  push:
+    branches:
+      - agent/v2-game-rebuild
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v2-static
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main site
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout V2 source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/v2-game-rebuild
+          path: v2-source
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install and build V2
+        working-directory: v2-source
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Publish V2 under main/v2
+        run: |
+          set -euo pipefail
+          rm -rf v2
+          mkdir -p v2
+          cp -R v2-source/dist/. v2/
+          touch v2/.nojekyll
+          rm -rf v2-source
+
+      - name: Commit generated static site
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v2
+          if git diff --cached --quiet; then
+            echo 'V2 static files are already current.'
+            exit 0
+          fi
+          git commit -m 'Publish V2 first-person preview [skip ci]'
+          git push origin main
