@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "1.0.0",
-  "generatedAt": "2026-07-24",
+  "schemaVersion": "1.1.0",
+  "generatedAt": "2026-07-27",
   "project": {
     "nameZh": "水下珞珈",
     "nameEn": "Sunken Luojia",
@@ -95,11 +95,11 @@
       "rotationY": 0,
       "dimensions": { "width": 92, "depth": 38, "height": 31 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "placeholder",
-      "sourceStatus": "collecting",
+      "reconstructionStatus": "blockout",
+      "sourceStatus": "partially-verified",
       "assetId": "asset-old-dormitories",
-      "notesZh": "需要分别记录台地、宿舍立面、拱廊、屋顶亭阁、连接通道和与山体的关系，不能作为单一方盒处理。",
-      "notesEn": "Terraces, residential facades, arcades, rooftop pavilions, connecting passages, and the relationship with the hill must be documented separately rather than represented as one box."
+      "notesZh": "已建立台地、分层宿舍翼楼、连接廊、屋顶亭阁与程序材质结构粗模；整体比例、坐标和细部仍需测绘与多源核验。",
+      "notesEn": "A structured blockout now includes terraces, layered dormitory wings, bridges, rooftop pavilions, and procedural materials; overall proportions, coordinates, and details still require survey and multi-source verification."
     },
     {
       "id": "hundred-step-stairway",
@@ -112,11 +112,11 @@
       "rotationY": 0,
       "dimensions": { "width": 12, "depth": 58, "height": 18 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "planned",
-      "sourceStatus": "collecting",
+      "reconstructionStatus": "blockout",
+      "sourceStatus": "partially-verified",
       "assetId": "asset-hundred-steps",
-      "notesZh": "重点核验踏步数量、宽度、坡度、平台、护栏、侧墙及上下建筑连接。",
-      "notesEn": "Verify the step count, width, slope, landings, railings, side walls, and connections to the buildings above and below."
+      "notesZh": "已按公开资料建立108级结构粗模、两处平台和侧墙；踏步尺寸、真实坡度及上下建筑接口仍需现场核验。",
+      "notesEn": "A 108-step structured blockout, two landings, and side walls are in place from public references; tread dimensions, true slope, and building interfaces still need field verification."
     },
     {
       "id": "old-library",
@@ -129,11 +129,11 @@
       "rotationY": 0,
       "dimensions": { "width": 48, "depth": 39, "height": 39 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "placeholder",
-      "sourceStatus": "collecting",
+      "reconstructionStatus": "blockout",
+      "sourceStatus": "partially-verified",
       "assetId": "asset-old-library",
-      "notesZh": "需重点还原台基、柱廊、主体比例、八角塔身、重檐屋顶、瓦色、石材与视线高度。",
-      "notesEn": "Priority details include the plinth, colonnade, main volume proportions, octagonal tower, layered roofs, roof tile color, stonework, and viewing height."
+      "notesZh": "已建立台基、两翼、柱廊、角部圆顶、八角塔身和重檐结构粗模；比例、瓦作、石材和精确高度仍需图纸与测量校准。",
+      "notesEn": "A structured blockout now includes the plinth, wings, colonnade, corner domes, octagonal tower, and layered roofs; proportions, roof work, stonework, and exact heights still require drawing and survey calibration."
     },
     {
       "id": "wuhan-university-archway",
@@ -163,11 +163,11 @@
       "rotationY": 0,
       "dimensions": { "width": 82, "depth": 28, "height": 31 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "placeholder",
-      "sourceStatus": "collecting",
+      "reconstructionStatus": "blockout",
+      "sourceStatus": "partially-verified",
       "assetId": "asset-administration-building",
-      "notesZh": "需核验中央体量、两翼、入口台阶、屋顶轮廓、窗洞节奏和周边道路绿化。",
-      "notesEn": "Verify the central volume, wings, entrance steps, roof silhouette, window rhythm, and surrounding roads and planting."
+      "notesZh": "已建立中央体量、两翼、入口柱廊、三级台阶、窗洞节奏和分层屋顶结构粗模；坐标、比例和周边道路绿化仍待核验。",
+      "notesEn": "A structured blockout now includes the central mass, wings, entrance colonnade, three stair terraces, window rhythm, and layered roofs; coordinates, proportions, roads, and planting remain unverified."
     },
     {
       "id": "science-hall",
@@ -180,11 +180,11 @@
       "rotationY": 0,
       "dimensions": { "width": 48, "depth": 42, "height": 32 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "placeholder",
-      "sourceStatus": "collecting",
+      "reconstructionStatus": "blockout",
+      "sourceStatus": "partially-verified",
       "assetId": "asset-science-hall",
-      "notesZh": "穹顶、鼓座、柱廊、入口和立面材料是辨识重点，需要独立纹理与结构资产。",
-      "notesEn": "The dome, drum, colonnade, entrance, and facade materials are key identifiers and require dedicated structural and material assets."
+      "notesZh": "已建立主体、侧翼、入口柱廊、窗格、鼓座与穹顶结构粗模；穹顶曲线、立面材料和精确比例仍需进一步核验。",
+      "notesEn": "A structured blockout now includes the main body, side wings, entrance colonnade, windows, drum, and dome; the dome profile, facade materials, and exact proportions still require further verification."
     },
     {
       "id": "cherry-blossom-avenue",
