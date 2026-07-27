@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createOldLibraryDetailed } from './HeritageCoreBlockouts';
 
 const VERIFIED_MAIN_ROOF_SPAN_METERS = 18;
+const VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS = 9.6;
 const ROOF_SPAN_TOLERANCE_METERS = 0.05;
 
 const materials = {
@@ -230,6 +231,14 @@ function createCalibrationOverlay(): THREE.Group {
     z: VERIFIED_MAIN_ROOF_SPAN_METERS,
     sourceIds: ['source-jaabe-old-library-roof-2022'],
   };
+  overlay.userData.verifiedCentralHallClearHeight = {
+    heightMeters: VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS,
+    sourceIds: [
+      'source-jaabe-old-library-roof-2022',
+      'source-whu-old-library-hall-height-2023',
+    ],
+    note: 'Interior control height only; does not establish total building height.',
+  };
 
   const box = new THREE.Box3(
     new THREE.Vector3(-43.25, 0, -26),
@@ -268,6 +277,19 @@ function createCalibrationOverlay(): THREE.Group {
     new THREE.Vector3(0, 46.8, -1 + halfSpan),
     0x63e6ff,
   );
+
+  const hallControlX = -13.5;
+  const hallBaseY = 5.4;
+  addAxisLine(
+    overlay,
+    new THREE.Vector3(hallControlX, hallBaseY, 7.5),
+    new THREE.Vector3(
+      hallControlX,
+      hallBaseY + VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS,
+      7.5,
+    ),
+    0xe48bd2,
+  );
   return overlay;
 }
 
@@ -279,7 +301,11 @@ export function createOldLibraryProductionAsset(): THREE.Group {
   root.userData.lodDistancesMeters = [0, 180, 420];
   root.userData.verifiedDimensions = {
     mainRoofStructuralSpanMeters: [18, 18],
-    sourceIds: ['source-jaabe-old-library-roof-2022'],
+    centralHallClearHeightMeters: VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS,
+    sourceIds: [
+      'source-jaabe-old-library-roof-2022',
+      'source-whu-old-library-hall-height-2023',
+    ],
   };
 
   const lod = new THREE.LOD();
