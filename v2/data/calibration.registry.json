@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyZh": "校准记录必须区分程序模型工程尺寸、资料推算尺寸和经测量核验尺寸。任何 verified 数值都必须绑定可追溯测量来源和误差记录。",
+  "policyEn": "Calibration records must distinguish procedural engineering dimensions, reference estimates, and measured verified dimensions. Every verified value requires traceable measurement sources and an error record.",
+  "records": [
+    {
+      "placeId": "old-library",
+      "coordinateSpace": "old-library-local-meters",
+      "calibrationModeUrlQuery": "?calibrate=old-library",
+      "engineeringEnvelope": {
+        "widthMeters": 86.5,
+        "depthMeters": 62,
+        "heightMeters": 62.5,
+        "status": "estimated",
+        "method": "Computed from the current procedural L3 asset bounding envelope; not a surveyed building dimension."
+      },
+      "dimensions": [
+        {
+          "id": "overall-width",
+          "labelZh": "当前模型总宽",
+          "labelEn": "Current model overall width",
+          "valueMeters": 86.5,
+          "status": "estimated",
+          "toleranceMeters": null,
+          "sourceIds": ["source-internal-placeholder-v2"],
+          "methodZh": "由当前程序模型左右最外侧构件包围盒计算，仅用于后续定标前的工程基准。",
+          "methodEn": "Computed from the outermost procedural geometry as an engineering baseline before calibration."
+        },
+        {
+          "id": "overall-depth",
+          "labelZh": "当前模型总深",
+          "labelEn": "Current model overall depth",
+          "valueMeters": 62,
+          "status": "estimated",
+          "toleranceMeters": null,
+          "sourceIds": ["source-internal-placeholder-v2"],
+          "methodZh": "包含主体屋面和入口台阶的当前工程包围盒，不代表建筑测绘进深。",
+          "methodEn": "Current engineering envelope including roof and entrance stair; not a surveyed building depth."
+        },
+        {
+          "id": "overall-height",
+          "labelZh": "当前模型总高",
+          "labelEn": "Current model overall height",
+          "valueMeters": 62.5,
+          "status": "estimated",
+          "toleranceMeters": null,
+          "sourceIds": ["source-internal-placeholder-v2"],
+          "methodZh": "从台基地面到当前顶部构件的程序模型高度，尚未通过图纸或测量核验。",
+          "methodEn": "Procedural height from plinth ground to the current finial; not verified by drawings or measurement."
+        },
+        {
+          "id": "central-tower-axis",
+          "labelZh": "中央八角塔轴线",
+          "labelEn": "Central octagonal tower axis",
+          "valueMeters": 0,
+          "status": "reference-aligned",
+          "toleranceMeters": null,
+          "sourceIds": [
+            "source-hubei-archives-early-drawings-2021",
+            "source-whu-early-architecture-beauty-2016",
+            "source-wikimedia-old-library-front-howchou-2012"
+          ],
+          "methodZh": "依据公开正立面与照片将中央塔轴线设为局部坐标 X=0；只确认对称轴关系，不确认绝对尺寸。",
+          "methodEn": "Public elevation and photographs align the central tower to local X=0; this confirms symmetry only, not absolute dimensions."
+        }
+      ],
+      "verifiedMeasurementSourceIds": [],
+      "errorRecord": [],
+      "requiredEvidenceForL2": [
+        "至少一个可信绝对尺寸，例如建筑总宽、柱距或门洞净宽",
+        "可定标的正立面和侧立面图像或建筑图纸",
+        "参考图拍摄位置与透视畸变记录",
+        "关键控制点在模型与参考资料之间的像素或米制误差"
+      ]
+    }
+  ]
+}
