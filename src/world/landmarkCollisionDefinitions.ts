@@ -9,10 +9,13 @@ const DEFINITIONS: Record<string, readonly LocalCollisionBox[]> = {
     { label: '老斋舍上层中央体量', center: [0, 18.5, -31], size: [58, 14, 18] },
   ],
   'old-library': [
-    { label: '老图书馆中央主体', center: [0, 18, -1], size: [42, 31, 34] },
-    { label: '老图书馆左翼', center: [-31.5, 14, -1], size: [23, 25, 42] },
-    { label: '老图书馆右翼', center: [31.5, 14, -1], size: [23, 25, 42] },
-    { label: '老图书馆前入口体量', center: [0, 17.5, 18.2], size: [22, 20, 9] },
+    { label: '老图书馆中央主楼', center: [0, 16, -1], size: [34, 28, 30] },
+    { label: '老图书馆中央纵向连接体', center: [0, 13, -2], size: [20, 20, 54] },
+    { label: '老图书馆前左附楼', center: [-27, 13, 13], size: [22, 21, 18] },
+    { label: '老图书馆前右附楼', center: [27, 13, 13], size: [22, 21, 18] },
+    { label: '老图书馆后左附楼', center: [-27, 13, -17], size: [22, 21, 18] },
+    { label: '老图书馆后右附楼', center: [27, 13, -17], size: [22, 21, 18] },
+    { label: '老图书馆南入口体量', center: [0, 17.5, 18.2], size: [22, 20, 9] },
     { label: '老图书馆中央塔', center: [0, 36, -1], size: [23, 32, 23] },
   ],
   'wuhan-university-archway': [
