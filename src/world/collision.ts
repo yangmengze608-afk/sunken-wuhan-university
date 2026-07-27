@@ -33,8 +33,16 @@ export function pointHitsExpandedBox(
   radius: number,
 ): boolean {
   for (const box of boxes) {
-    const expanded = box.clone().expandByScalar(radius);
-    if (expanded.containsPoint(point)) return true;
+    if (
+      point.x >= box.min.x - radius
+      && point.x <= box.max.x + radius
+      && point.y >= box.min.y - radius
+      && point.y <= box.max.y + radius
+      && point.z >= box.min.z - radius
+      && point.z <= box.max.z + radius
+    ) {
+      return true;
+    }
   }
   return false;
 }
