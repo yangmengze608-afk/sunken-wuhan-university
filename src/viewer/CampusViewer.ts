@@ -97,12 +97,16 @@ export class CampusViewer {
     this.overviewControls.target.copy(this.overviewTarget);
     this.overviewControls.enabled = false;
 
-    this.swimControls = new SwimFirstPersonControls(this.camera, this.renderer.domElement, layout);
-
     const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
     new WholeCampusWorld(this.scene, layout, dataset, coverage, debugZones);
     const geoLayer = new CampusGeoDataLayer(this.scene, layout, geoData);
     const landmarkLayer = new LandmarkBlockoutLayer(this.scene, layout, dataset);
+    this.swimControls = new SwimFirstPersonControls(
+      this.camera,
+      this.renderer.domElement,
+      layout,
+      landmarkLayer.collisionBoxes,
+    );
 
     for (const placeId of landmarkLayer.representedPlaceIds) {
       const oldGeoObject = geoLayer.placeObjects.get(placeId);
