@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { pointHitsExpandedBox } from '../world/collision';
 import { sampleTerrainHeight } from '../world/terrain';
 import type { WholeCampusLayout } from '../world/types';
 
@@ -30,11 +31,13 @@ export class SwimFirstPersonControls {
   private readonly savedPosition = new THREE.Vector3();
   private active = false;
   private suppressNextClick = false;
+  private readonly collisionRadius = 1.1;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
     private readonly domElement: HTMLElement,
     private readonly layout: WholeCampusLayout,
+    private readonly collisionBoxes: readonly THREE.Box3[],
   ) {
     this.camera.rotation.order = 'YXZ';
 
@@ -105,7 +108,11 @@ export class SwimFirstPersonControls {
     if (desired.lengthSq() > 0) desired.normalize().multiplyScalar(this.speed);
     const inertia = 1 - Math.pow(0.0012, deltaSeconds);
     this.velocity.lerp(desired, inertia);
-    this.camera.position.addScaledVector(this.velocity, deltaSeconds);
+
+    const movement = this.velocity.clone().multiplyScalar(deltaSeconds);
+    this.tryMoveAxis('x', movement.x);
+    this.tryMoveAxis('z', movement.z);
+    this.tryMoveAxis('y', movement.y);
 
     const position = this.camera.position;
     position.x = clamp(position.x, this.layout.bounds.minX + 4, this.layout.bounds.maxX - 4);
@@ -181,6 +188,17 @@ export class SwimFirstPersonControls {
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
     window.removeEventListener('blur', this.handleBlur);
+  }
+
+  private tryMoveAxis(axis: 'x' | 'y' | 'z', amount: number): void {
+    if (Math.abs(amount) < 0.000001) return;
+    const candidate = this.camera.position.clone();
+    candidate[axis] += amount;
+    if (pointHitsExpandedBox(candidate, this.collisionBoxes, this.collisionRadius)) {
+      this.velocity[axis] = 0;
+      return;
+    }
+    this.camera.position[axis] = candidate[axis];
   }
 
   private lookAt(target: THREE.Vector3): void {
