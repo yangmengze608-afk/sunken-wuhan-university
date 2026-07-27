@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "policyZh": "校准记录必须区分程序模型工程尺寸、资料推算尺寸和经测量核验尺寸。任何 verified 数值都必须绑定可追溯测量来源和误差记录。",
   "policyEn": "Calibration records must distinguish procedural engineering dimensions, reference estimates, and measured verified dimensions. Every verified value requires traceable measurement sources and an error record.",
   "records": [
@@ -8,34 +8,34 @@
       "coordinateSpace": "old-library-local-meters",
       "calibrationModeUrlQuery": "?calibrate=old-library",
       "engineeringEnvelope": {
-        "widthMeters": 86.5,
-        "depthMeters": 62,
+        "widthMeters": 78,
+        "depthMeters": 65,
         "heightMeters": 62.5,
         "status": "estimated",
-        "method": "Computed from the current procedural L3 asset bounding envelope; not a surveyed building dimension."
+        "method": "Computed from the corrected procedural I-plan asset envelope; still not a surveyed overall building dimension."
       },
       "dimensions": [
         {
           "id": "overall-width",
-          "labelZh": "当前模型总宽",
-          "labelEn": "Current model overall width",
-          "valueMeters": 86.5,
+          "labelZh": "当前工字形模型总宽",
+          "labelEn": "Current I-plan model overall width",
+          "valueMeters": 78,
           "status": "estimated",
           "toleranceMeters": null,
           "sourceIds": ["source-internal-placeholder-v2"],
-          "methodZh": "由当前程序模型左右最外侧构件包围盒计算，仅用于后续定标前的工程基准。",
-          "methodEn": "Computed from the outermost procedural geometry as an engineering baseline before calibration."
+          "methodZh": "由当前工字形程序模型台基及附楼最外侧包围盒计算，仅用于工程基准。",
+          "methodEn": "Computed from the current I-plan procedural plinth and outer auxiliary-building envelope as an engineering baseline."
         },
         {
           "id": "overall-depth",
-          "labelZh": "当前模型总深",
-          "labelEn": "Current model overall depth",
-          "valueMeters": 62,
+          "labelZh": "当前工字形模型总深",
+          "labelEn": "Current I-plan model overall depth",
+          "valueMeters": 65,
           "status": "estimated",
           "toleranceMeters": null,
           "sourceIds": ["source-internal-placeholder-v2"],
-          "methodZh": "包含主体屋面和入口台阶的当前工程包围盒，不代表建筑测绘进深。",
-          "methodEn": "Current engineering envelope including roof and entrance stair; not a surveyed building depth."
+          "methodZh": "包含前后四座附楼、南入口和台阶的当前工程包围盒，不代表测绘进深。",
+          "methodEn": "Current engineering envelope including four front/rear auxiliary buildings, south entrance, and stair; not a surveyed depth."
         },
         {
           "id": "overall-height",
@@ -133,7 +133,7 @@
         "取得至少一个可信的建筑总宽、柱距或门洞净宽",
         "核对4767平方米与6234平方米两种公开面积数据的统计口径",
         "取得可定标的正立面、侧立面或建筑平面图",
-        "建立符合工字形平面描述的四座附楼控制框架",
+        "记录四座附楼相对中央主楼的控制点误差",
         "记录关键控制点在模型与参考资料之间的米制误差"
       ]
     }
