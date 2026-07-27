@@ -95,9 +95,10 @@ function findDetailedMainRoof(group: THREE.Group): THREE.Mesh {
     selected = object;
   });
 
-  if (!selected) throw new Error('老图书馆 LOD0 未找到中央八角屋顶');
-  selected.name = 'OldLibraryMainOctagonalRoofLOD0';
-  return selected;
+  const roof = selected as THREE.Mesh | null;
+  if (roof === null) throw new Error('老图书馆 LOD0 未找到中央八角屋顶');
+  roof.name = 'OldLibraryMainOctagonalRoofLOD0';
+  return roof;
 }
 
 function createOldLibraryLod0(): THREE.Group {
