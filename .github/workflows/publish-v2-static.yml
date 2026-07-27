@@ -1,5 +1,6 @@
 name: Publish V2 static site
 
+# Rebuilds the latest V2 source and publishes it under the stable /v2/ path.
 on:
   push:
     branches: [main]
