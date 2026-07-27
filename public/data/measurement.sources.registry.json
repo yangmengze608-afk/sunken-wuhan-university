@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "policyZh": "本登记表只保存能够约束绝对尺寸、面积、跨度或比例的来源。照片观感、旅游介绍和未定标示意图不得作为 verified 尺寸证据。",
   "policyEn": "This registry only contains sources that constrain absolute dimensions, areas, spans, or scale. Visual impressions, tourism descriptions, and unscaled diagrams must not support verified dimensions.",
   "records": [
@@ -52,6 +52,27 @@
         }
       ],
       "verificationNotes": "另一篇建筑学论文引用文献给出6234平方米的useable floor area。两者可能使用不同面积口径，未完成口径核对前不得据此单独缩放整个模型。"
+    },
+    {
+      "id": "source-whu-old-library-hall-height-2023",
+      "title": "流风甚美 芳华待灼：近观武汉大学130年文脉传承发展",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "新华每日电讯 / 武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1003/447067.htm",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library"],
+      "licenseOrPermission": "reference-only-no-visual-asset-reuse",
+      "measurementClaims": [
+        {
+          "claimId": "old-library-central-hall-clear-height",
+          "value": 9.6,
+          "unit": "meter",
+          "status": "verified-published-official-republication",
+          "descriptionZh": "武汉大学新闻网刊载的报道记载老图书馆中央礼堂空高9.6米。",
+          "descriptionEn": "A report published by Wuhan University News states that the central hall has a clear height of 9.6 metres."
+        }
+      ],
+      "verificationNotes": "该数值只用于中央大厅室内净高控制，不用于推算建筑总高、层高组合或屋顶高度。"
     }
   ]
 }
