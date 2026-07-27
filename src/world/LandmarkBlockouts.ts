@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import type { CampusDataset, CampusPlace } from '../data/types';
+import { attachCollisionBoxes, collectWorldCollisionBoxes } from './collision';
+import { HeritageCoreContextLayer } from './HeritageCoreContext';
 import {
   createHundredStepsDetailed,
   createOldDormitoriesDetailed,
   createOldLibraryDetailed,
 } from './HeritageCoreBlockouts';
+import { enhanceHeritageMaterials } from './HeritageMaterialEnhancer';
+import { collisionDefinitionsFor } from './landmarkCollisionDefinitions';
 import { sampleTerrainHeight } from './terrain';
 import type { WholeCampusLayout } from './types';
 
@@ -128,6 +132,7 @@ export class LandmarkBlockoutLayer {
   readonly representedPlaceIds = new Set<string>();
   readonly placeObjects = new Map<string, THREE.Object3D>();
   readonly clickableObjects: THREE.Object3D[] = [];
+  readonly collisionBoxes: THREE.Box3[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -153,6 +158,8 @@ export class LandmarkBlockoutLayer {
     }
 
     scene.add(root);
+    const contextLayer = new HeritageCoreContextLayer(scene, layout, dataset);
+    this.collisionBoxes.push(...contextLayer.collisionBoxes);
   }
 
   private placeGroup(
@@ -168,7 +175,10 @@ export class LandmarkBlockoutLayer {
       place.position.z,
     );
     group.rotation.y = place.rotationY;
+    attachCollisionBoxes(group, collisionDefinitionsFor(place.id));
+    enhanceHeritageMaterials(group);
     root.add(group);
+    this.collisionBoxes.push(...collectWorldCollisionBoxes(group));
 
     this.representedPlaceIds.add(place.id);
     this.placeObjects.set(place.id, group);
