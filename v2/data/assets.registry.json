@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyZh": "所有模型必须记录来源、比例、坐标、精度、许可和替换状态。未经核验的占位模型不得标记为高精度复原。",
+  "policyEn": "Every model must record its sources, scale, coordinates, accuracy, licensing, and replacement status. Unverified placeholders must never be described as high-fidelity reconstructions.",
+  "assets": [
+    {
+      "id": "asset-912-field",
+      "targetPlaceId": "912-sports-field",
+      "modelPath": "models/heritage-core/912-field/912-field.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-old-dormitories",
+      "targetPlaceId": "old-dormitories",
+      "modelPath": "models/heritage-core/old-dormitories/old-dormitories.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-hundred-steps",
+      "targetPlaceId": "hundred-step-stairway",
+      "modelPath": "models/heritage-core/hundred-steps/hundred-steps.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-old-library",
+      "targetPlaceId": "old-library",
+      "modelPath": "models/heritage-core/old-library/old-library.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-main-archway",
+      "targetPlaceId": "wuhan-university-archway",
+      "modelPath": "models/main-gate/main-archway/main-archway.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-administration-building",
+      "targetPlaceId": "administration-building",
+      "modelPath": "models/administration-science/administration-building/administration-building.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-science-hall",
+      "targetPlaceId": "science-hall",
+      "modelPath": "models/administration-science/science-hall/science-hall.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-cherry-avenue",
+      "targetPlaceId": "cherry-blossom-avenue",
+      "modelPath": "models/campus-network/cherry-avenue/cherry-avenue.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "mixed-project-created-and-licensed"
+    },
+    {
+      "id": "asset-fengyuan-building",
+      "targetPlaceId": "fengyuan-building",
+      "modelPath": "models/east-lake-edge/fengyuan-building/fengyuan-building.glb",
+      "status": "blocked-by-identification",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "missing",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-liuyi-pavilion",
+      "targetPlaceId": "liuyi-pavilion",
+      "modelPath": "models/campus-network/liuyi-pavilion/liuyi-pavilion.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "project-created-required"
+    },
+    {
+      "id": "asset-east-lake-shoreline",
+      "targetPlaceId": "east-lake-shoreline",
+      "modelPath": "models/terrain/east-lake-shoreline/east-lake-shoreline.glb",
+      "status": "planned",
+      "accuracy": "placeholder",
+      "lodStatus": "missing",
+      "materialStatus": "missing",
+      "sourceStatus": "collecting",
+      "licenseStatus": "derived-data-review-required"
+    }
+  ]
+}

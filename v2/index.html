@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="水下珞珈：以武汉大学校园空间、建筑与文化记忆为核心的高精度连续校园数字重建项目。"
+    />
+    <title>水下珞珈 · Sunken Luojia V2</title>
+    <script type="module" crossorigin src="./assets/index-CBnZyLXc.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DLQK9ibV.css">
+  </head>
+  <body class="mode-first-person catalog-closed">
+    <div id="app">
+      <main id="viewport" aria-label="武汉大学水下数字重建连续校园三维视图"></main>
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">FIRST-PERSON CONTINUOUS WUHAN UNIVERSITY WORLD</p>
+          <h1>水下珞珈 <span>Sunken Luojia</span></h1>
+          <p class="subtitle">第一人称水下漫游为主 · 校园总览为辅助 · V2 Alpha</p>
+        </div>
+        <div id="dataset-status" class="status">正在读取完整校园总图…</div>
+      </header>
+
+      <nav class="view-controls" aria-label="浏览模式">
+        <button id="mode-first-person" type="button" aria-pressed="true">第一人称</button>
+        <button id="mode-overview" type="button" aria-pressed="false">校园总览</button>
+        <button id="catalog-toggle" type="button" aria-expanded="false">地点目录</button>
+      </nav>
+
+      <aside class="sidebar" aria-label="校园地点目录">
+        <div class="sidebar-heading">
+          <div>
+            <h2>完整校园建设目录</h2>
+            <p>点击地点会在同一张大地图中移动到附近，不会进入独立空间。</p>
+          </div>
+          <button id="catalog-close" class="catalog-close" type="button" aria-label="关闭地点目录">×</button>
+        </div>
+        <div id="place-list" class="place-list"></div>
+      </aside>
+
+      <section id="place-detail" class="detail-card" aria-live="polite">
+        <p class="detail-kicker">FIRST-PERSON CAMPUS WORLD</p>
+        <h2>正在建立完整武汉大学</h2>
+        <p>所有地形、道路、建筑、操场和岸线位于同一个连续世界中。</p>
+      </section>
+
+      <div class="crosshair" aria-hidden="true"><span></span></div>
+
+      <section class="swim-hud" aria-label="第一人称游览状态">
+        <div class="telemetry">
+          <span>游速 <b id="ui-speed">28</b></span>
+          <span>离地 <b id="ui-clearance">8.0</b>m</span>
+          <span>坐标 <b id="ui-position">140, 340</b></span>
+        </div>
+        <p>拖动鼠标转向 · WASD 游动 · 空格上浮 · Shift 下潜 · 滚轮调速 · M 切换视角</p>
+      </section>
+
+      <footer class="notice">
+        独立学生创作项目，非武汉大学官方产品。当前地图与建筑多数仍为工程占位。
+      </footer>
+    </div>
+  </body>
+</html>
