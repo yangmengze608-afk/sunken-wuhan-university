@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.4.0",
   "policyZh": "所有模型必须记录来源、比例、坐标、精度、许可和替换状态。未经核验的占位模型不得标记为高精度复原。",
   "policyEn": "Every model must record its sources, scale, coordinates, accuracy, licensing, and replacement status. Unverified placeholders must never be described as high-fidelity reconstructions.",
   "assets": [
@@ -40,12 +40,12 @@
       "id": "asset-old-library",
       "targetPlaceId": "old-library",
       "modelPath": "models/heritage-core/old-library/old-library.glb",
-      "status": "blockout",
+      "status": "detailed",
       "accuracy": "estimated",
-      "lodStatus": "procedural-blockout-only",
-      "materialStatus": "reference-informed-procedural-materials",
+      "lodStatus": "runtime-procedural-lod0-lod1-lod2-glb-export-pending",
+      "materialStatus": "procedural-pbr-albedo-roughness-normal-uv-review-pending",
       "sourceStatus": "partially-verified",
-      "licenseStatus": "project-created-geometry-with-traceable-references"
+      "licenseStatus": "project-created-geometry-and-procedural-materials-with-traceable-references"
     },
     {
       "id": "asset-main-archway",
