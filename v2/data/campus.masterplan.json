@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "generatedAt": "2026-07-27",
   "project": {
     "nameZh": "水下珞珈",
@@ -197,11 +197,11 @@
       "rotationY": 1.5708,
       "dimensions": { "width": 340, "depth": 12, "height": 0.4 },
       "coordinateAccuracy": "placeholder",
-      "reconstructionStatus": "planned",
+      "reconstructionStatus": "blockout",
       "sourceStatus": "collecting",
       "assetId": "asset-cherry-avenue",
-      "notesZh": "道路宽度、铺装、树距、树种、灯杆、排水、边坡及与沿线建筑的关系均需记录。",
-      "notesEn": "Road width, paving, tree spacing and species, lamps, drainage, slopes, and relationships to adjacent buildings all require documentation."
+      "notesZh": "已沿统一道路骨架建立连续道路、两侧铺装、实例化樱花树、路灯、座椅及行政楼和理学楼前广场；道路宽度、树距、树种、设施位置和真实高差仍需地图与现场测量校准。",
+      "notesEn": "A continuous blockout now follows the shared road spine with sidewalks, instanced cherry trees, lamps, benches, and plazas at the administration and science buildings; road width, tree spacing and species, furniture positions, and true elevation still require map and field calibration."
     },
     {
       "id": "fengyuan-building",
