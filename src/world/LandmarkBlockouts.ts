@@ -10,10 +10,10 @@ import { HeritageCoreContextLayer } from './HeritageCoreContext';
 import {
   createHundredStepsDetailed,
   createOldDormitoriesDetailed,
-  createOldLibraryDetailed,
 } from './HeritageCoreBlockouts';
 import { enhanceHeritageMaterials } from './HeritageMaterialEnhancer';
 import { collisionDefinitionsFor } from './landmarkCollisionDefinitions';
+import { createOldLibraryProductionAsset } from './OldLibraryProductionAsset';
 import { sampleTerrainHeight } from './terrain';
 import type { WholeCampusLayout } from './types';
 
@@ -153,7 +153,7 @@ export class LandmarkBlockoutLayer {
       '912-sports-field': createSportsField,
       'old-dormitories': createOldDormitoriesDetailed,
       'hundred-step-stairway': createHundredStepsDetailed,
-      'old-library': createOldLibraryDetailed,
+      'old-library': createOldLibraryProductionAsset,
       'wuhan-university-archway': createArchway,
       'administration-building': createAdministrationBuildingDetailed,
       'science-hall': createScienceHallDetailed,
