@@ -8,6 +8,71 @@
       content="水下珞珈：以武汉大学校园空间、建筑与文化记忆为核心的高精度连续校园数字重建项目。"
     />
     <title>水下珞珈 · Sunken Luojia V2</title>
+    <script>
+      (() => {
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const rawUrl = typeof input === 'string'
+            ? input
+            : input instanceof Request
+              ? input.url
+              : String(input);
+          const resolvedUrl = new URL(rawUrl, window.location.href);
+
+          if (!resolvedUrl.pathname.endsWith('/data/sources.registry.json')) {
+            return nativeFetch(input, init);
+          }
+
+          const sourceResponse = await nativeFetch(input, init);
+          if (!sourceResponse.ok) return sourceResponse;
+
+          const measurementUrl = new URL(
+            './data/measurement.sources.registry.json',
+            window.location.href,
+          );
+          const measurementResponse = await nativeFetch(measurementUrl, {
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+          });
+          if (!measurementResponse.ok) return sourceResponse;
+
+          const [sourceRegistry, measurementRegistry] = await Promise.all([
+            sourceResponse.json(),
+            measurementResponse.json(),
+          ]);
+          const knownIds = new Set(
+            (sourceRegistry.records ?? []).map((record) => record.id),
+          );
+
+          for (const measurementSource of measurementRegistry.records ?? []) {
+            if (knownIds.has(measurementSource.id)) continue;
+            knownIds.add(measurementSource.id);
+            sourceRegistry.records.push({
+              id: measurementSource.id,
+              title: measurementSource.title,
+              sourceType: measurementSource.sourceType,
+              publisherOrAuthor: measurementSource.publisherOrAuthor,
+              urlOrArchiveReference: measurementSource.urlOrArchiveReference,
+              accessedAt: measurementSource.accessedAt,
+              targetPlaceIds: measurementSource.targetPlaceIds,
+              usagePurpose: (measurementSource.measurementClaims ?? [])
+                .map((claim) => claim.descriptionZh)
+                .join('；'),
+              licenseOrPermission: measurementSource.licenseOrPermission,
+              verificationNotes: measurementSource.verificationNotes,
+            });
+          }
+
+          return new Response(JSON.stringify(sourceRegistry), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Cache-Control': 'no-store',
+            },
+          });
+        };
+      })();
+    </script>
     <script type="module" crossorigin src="./assets/index-CENpyDC3.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-BQx3IdHg.css">
   </head>
