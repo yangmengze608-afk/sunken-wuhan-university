@@ -32,13 +32,14 @@ function isClosed(ring) {
     && first[1] === last[1];
 }
 
-const [world, campus, assets, coverage, geoData, sources] = await Promise.all([
+const [world, campus, assets, coverage, geoData, sources, fidelity] = await Promise.all([
   readJson('public/data/world.layout.json'),
   readJson('public/data/campus.masterplan.json'),
   readJson('public/data/assets.registry.json'),
   readJson('public/data/campus.coverage.json'),
   readJson('public/data/campus.geodata.geojson'),
   readJson('public/data/sources.registry.json'),
+  readJson('public/data/fidelity.registry.json'),
 ]);
 
 assert(world.worldId === 'whole-wuhan-university', 'Unexpected or missing world ID');
@@ -137,8 +138,42 @@ for (const feature of geoData.features) {
   }
 }
 
+const fidelityLevels = new Set(['L0', 'L1', 'L2', 'L3', 'L4', 'L5']);
+const fidelityPlaceIds = new Set();
+for (const record of fidelity.records) {
+  assert(placeIds.has(record.placeId), `Unknown fidelity placeId: ${record.placeId}`);
+  assert(!fidelityPlaceIds.has(record.placeId), `Duplicate fidelity record: ${record.placeId}`);
+  fidelityPlaceIds.add(record.placeId);
+  assert(fidelityLevels.has(record.currentLevel), `Invalid current fidelity level on ${record.placeId}`);
+  assert(fidelityLevels.has(record.targetLevel), `Invalid target fidelity level on ${record.placeId}`);
+  assert(
+    Number(record.currentLevel.slice(1)) <= Number(record.targetLevel.slice(1)),
+    `Current fidelity exceeds target on ${record.placeId}`,
+  );
+  assert(Array.isArray(record.verifiedElements), `Missing verified elements on ${record.placeId}`);
+  assert(Array.isArray(record.estimatedElements), `Missing estimated elements on ${record.placeId}`);
+  assert(Array.isArray(record.requiredForNextLevel), `Missing next-level requirements on ${record.placeId}`);
+
+  if (record.currentLevel === 'L5') {
+    assert(record.verifiedElements.length > 0, `L5 record lacks verified elements: ${record.placeId}`);
+    assert(record.estimatedElements.length === 0, `L5 record still contains estimated elements: ${record.placeId}`);
+    assert(
+      Array.isArray(record.errorRecord) && record.errorRecord.length > 0,
+      `L5 record lacks an error record: ${record.placeId}`,
+    );
+    assert(
+      Array.isArray(record.measurementSourceIds) && record.measurementSourceIds.length > 0,
+      `L5 record lacks measurement sources: ${record.placeId}`,
+    );
+    for (const sourceId of record.measurementSourceIds) {
+      assert(sourceIds.has(sourceId), `Unknown L5 measurement source ${sourceId} on ${record.placeId}`);
+    }
+  }
+}
+
 console.log(
   `Data validation passed: ${campus.places.length} places, ${coverage.areas.length} coverage areas, `
   + `${geoData.features.length} GeoJSON features (${polygonCount} polygons, ${lineCount} lines), `
-  + `${coordinateCount} coordinate positions, ${sources.records.length} registered sources.`,
+  + `${coordinateCount} coordinate positions, ${sources.records.length} registered sources, `
+  + `${fidelity.records.length} fidelity records.`,
 );
