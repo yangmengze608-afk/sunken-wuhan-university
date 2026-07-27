@@ -32,13 +32,24 @@ function isClosed(ring) {
     && first[1] === last[1];
 }
 
-const [world, campus, assets, coverage, geoData, sources, fidelity, calibration] = await Promise.all([
+const [
+  world,
+  campus,
+  assets,
+  coverage,
+  geoData,
+  sources,
+  measurementSources,
+  fidelity,
+  calibration,
+] = await Promise.all([
   readJson('public/data/world.layout.json'),
   readJson('public/data/campus.masterplan.json'),
   readJson('public/data/assets.registry.json'),
   readJson('public/data/campus.coverage.json'),
   readJson('public/data/campus.geodata.geojson'),
   readJson('public/data/sources.registry.json'),
+  readJson('public/data/measurement.sources.registry.json'),
   readJson('public/data/fidelity.registry.json'),
   readJson('public/data/calibration.registry.json'),
 ]);
@@ -46,9 +57,21 @@ const [world, campus, assets, coverage, geoData, sources, fidelity, calibration]
 assert(world.worldId === 'whole-wuhan-university', 'Unexpected or missing world ID');
 assert(geoData.type === 'FeatureCollection', 'Campus geodata must be a FeatureCollection');
 assert(geoData.metadata?.coordinateSpace === 'local-cartesian-meters', 'Unsupported geodata coordinate space');
+assert(Array.isArray(measurementSources.records), 'Measurement source registry has no records array');
 
 const assetIds = new Set(assets.assets.map((asset) => asset.id));
-const sourceIds = new Set(sources.records.map((source) => source.id));
+const sourceIds = new Set();
+for (const source of sources.records) {
+  assert(source.id, 'Standard source record lacks ID');
+  assert(!sourceIds.has(source.id), `Duplicate source ID: ${source.id}`);
+  sourceIds.add(source.id);
+}
+for (const source of measurementSources.records) {
+  assert(source.id, 'Measurement source record lacks ID');
+  assert(!sourceIds.has(source.id), `Duplicate source ID across registries: ${source.id}`);
+  sourceIds.add(source.id);
+}
+
 const placeIds = new Set();
 for (const place of campus.places) {
   assert(!placeIds.has(place.id), `Duplicate campus place ID: ${place.id}`);
@@ -59,6 +82,31 @@ for (const place of campus.places) {
   );
   if (place.assetId !== null) {
     assert(assetIds.has(place.assetId), `Unknown asset binding on ${place.id}: ${place.assetId}`);
+  }
+}
+
+const measurementClaimIds = new Set();
+for (const source of measurementSources.records) {
+  assert(source.sourceType, `Measurement source lacks sourceType: ${source.id}`);
+  assert(source.publisherOrAuthor, `Measurement source lacks publisher or author: ${source.id}`);
+  assert(source.urlOrArchiveReference, `Measurement source lacks reference: ${source.id}`);
+  assert(Array.isArray(source.targetPlaceIds) && source.targetPlaceIds.length > 0, `Measurement source lacks targets: ${source.id}`);
+  for (const placeId of source.targetPlaceIds) {
+    assert(placeIds.has(placeId), `Measurement source ${source.id} targets unknown place ${placeId}`);
+  }
+  assert(Array.isArray(source.measurementClaims) && source.measurementClaims.length > 0, `Measurement source lacks claims: ${source.id}`);
+  for (const claim of source.measurementClaims) {
+    assert(claim.claimId, `Measurement claim lacks ID on ${source.id}`);
+    assert(!measurementClaimIds.has(claim.claimId), `Duplicate measurement claim ID: ${claim.claimId}`);
+    measurementClaimIds.add(claim.claimId);
+    assert(claim.unit, `Measurement claim lacks unit: ${claim.claimId}`);
+    assert(claim.status, `Measurement claim lacks status: ${claim.claimId}`);
+    const valueValid = typeof claim.value === 'string'
+      ? claim.value.length > 0
+      : Array.isArray(claim.value)
+        ? claim.value.length > 0 && claim.value.every((value) => Number.isFinite(value))
+        : Number.isFinite(claim.value);
+    assert(valueValid, `Measurement claim has invalid value: ${claim.claimId}`);
   }
 }
 
@@ -222,6 +270,19 @@ for (const record of calibration.records) {
     }
   }
 
+  if (Array.isArray(record.publishedAreaConstraints)) {
+    for (const constraint of record.publishedAreaConstraints) {
+      assert(
+        Number.isFinite(constraint.valueSquareMeters) && constraint.valueSquareMeters > 0,
+        `Invalid published area constraint on ${record.placeId}`,
+      );
+      assert(Array.isArray(constraint.sourceIds) && constraint.sourceIds.length > 0, `Published area lacks source IDs on ${record.placeId}`);
+      for (const sourceId of constraint.sourceIds) {
+        assert(sourceIds.has(sourceId), `Unknown published area source ${sourceId} on ${record.placeId}`);
+      }
+    }
+  }
+
   if (verifiedDimensionCount > 0) {
     assert(
       Array.isArray(record.verifiedMeasurementSourceIds)
@@ -242,7 +303,8 @@ for (const record of calibration.records) {
 console.log(
   `Data validation passed: ${campus.places.length} places, ${coverage.areas.length} coverage areas, `
   + `${geoData.features.length} GeoJSON features (${polygonCount} polygons, ${lineCount} lines), `
-  + `${coordinateCount} coordinate positions, ${sources.records.length} registered sources, `
+  + `${coordinateCount} coordinate positions, ${sources.records.length} standard sources, `
+  + `${measurementSources.records.length} measurement sources with ${measurementClaimIds.size} claims, `
   + `${fidelity.records.length} fidelity records, ${calibration.records.length} calibration records `
   + `with ${calibrationDimensionCount} dimensions.`,
 );
