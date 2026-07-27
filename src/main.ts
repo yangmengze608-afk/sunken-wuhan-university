@@ -1,6 +1,7 @@
 import './styles.css';
 import { loadAssetRegistry } from './assets/loadAssetRegistry';
 import { loadCampusDataset } from './data/loadCampus';
+import { loadFidelityRegistry, type FidelityRecord } from './data/fidelityRegistry';
 import { loadSourceRegistry } from './data/sourceRegistry';
 import type { AccuracyLevel, CampusPlace, ReconstructionStatus, SourceStatus } from './data/types';
 import { loadCampusGeoData } from './geodata/loadCampusGeoData';
@@ -94,28 +95,59 @@ function applyViewMode(mode: ViewMode): void {
   setCatalogOpen(!firstPerson);
 }
 
-function renderDetail(place: CampusPlace): void {
+function renderDetail(
+  place: CampusPlace,
+  fidelityByPlace: ReadonlyMap<string, FidelityRecord>,
+): void {
+  const fidelity = fidelityByPlace.get(place.id);
+  const fidelityBlock = fidelity
+    ? `
+      <div><span>当前精度</span><b>${fidelity.currentLevel}</b></div>
+      <div><span>目标精度</span><b>${fidelity.targetLevel}</b></div>
+    `
+    : `
+      <div><span>当前精度</span><b>尚未登记</b></div>
+      <div><span>目标精度</span><b>待规划</b></div>
+    `;
+  const fidelityNotes = fidelity
+    ? `
+      <p><strong>当前实现：</strong>${fidelity.currentImplementation}</p>
+      <p><strong>下一等级门槛：</strong>${fidelity.requiredForNextLevel.slice(0, 2).join('；')}</p>
+    `
+    : '';
+
   detail.innerHTML = `
     <p class="detail-kicker">PRIORITY ${place.priority} · ${place.category}</p>
     <h2>${place.nameZh}</h2>
     <h3>${place.nameEn}</h3>
     <p>${place.notesZh}</p>
     <p>${place.notesEn}</p>
+    ${fidelityNotes}
     <div class="detail-grid">
       <div><span>坐标可信度</span><b>${accuracyLabels[place.coordinateAccuracy]}</b></div>
       <div><span>模型状态</span><b>${reconstructionLabels[place.reconstructionStatus]}</b></div>
       <div><span>资料状态</span><b>${sourceLabels[place.sourceStatus]}</b></div>
       <div><span>资产绑定</span><b>${place.assetId ?? '尚未绑定'}</b></div>
+      ${fidelityBlock}
     </div>
   `;
 }
 
 async function start(): Promise<void> {
   try {
-    const [dataset, assetRegistry, sourceRegistry, worldLayout, coverage, geoData] = await Promise.all([
+    const [
+      dataset,
+      assetRegistry,
+      sourceRegistry,
+      fidelityRegistry,
+      worldLayout,
+      coverage,
+      geoData,
+    ] = await Promise.all([
       loadCampusDataset(),
       loadAssetRegistry(),
       loadSourceRegistry(),
+      loadFidelityRegistry(),
       loadWorldLayout(),
       loadCampusCoverage(),
       loadCampusGeoData(),
@@ -136,6 +168,17 @@ async function start(): Promise<void> {
     if (missingGeoSources.length > 0) {
       throw new Error(`校园矢量数据引用了 ${missingGeoSources.length} 个未登记来源`);
     }
+
+    const placeIds = new Set(dataset.places.map((place) => place.id));
+    const unknownFidelityRecords = fidelityRegistry.records.filter(
+      (record) => !placeIds.has(record.placeId),
+    );
+    if (unknownFidelityRecords.length > 0) {
+      throw new Error(`精度登记表包含 ${unknownFidelityRecords.length} 个未知地点`);
+    }
+    const fidelityByPlace = new Map(
+      fidelityRegistry.records.map((record) => [record.placeId, record] as const),
+    );
 
     const placesOutsideWorld = dataset.places.filter(
       (place) => place.position.x < worldLayout.bounds.minX
@@ -167,7 +210,7 @@ async function start(): Promise<void> {
       coverage,
       geoData,
       (place) => {
-        renderDetail(place);
+        renderDetail(place, fidelityByPlace);
         for (const button of placeList.querySelectorAll<HTMLButtonElement>('.place-button')) {
           button.setAttribute('aria-current', String(button.dataset.placeId === place.id));
         }
@@ -195,6 +238,7 @@ async function start(): Promise<void> {
 
     const orderedPlaces = [...dataset.places].sort((a, b) => a.priority - b.priority);
     for (const place of orderedPlaces) {
+      const fidelity = fidelityByPlace.get(place.id);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'place-button';
@@ -202,7 +246,7 @@ async function start(): Promise<void> {
       button.setAttribute('aria-current', 'false');
       button.innerHTML = `
         <strong>${place.nameZh}</strong>
-        <small>${place.nameEn} · ${reconstructionLabels[place.reconstructionStatus]}</small>
+        <small>${place.nameEn} · ${reconstructionLabels[place.reconstructionStatus]}${fidelity ? ` · ${fidelity.currentLevel}` : ''}</small>
         <span class="priority">P${place.priority}</span>
       `;
       button.addEventListener('click', () => {
@@ -217,13 +261,17 @@ async function start(): Promise<void> {
     const blockoutCount = coverage.areas.reduce((total, area) => total + area.blockCount, 0);
     const polygonCount = geoData.features.filter((feature) => feature.geometry.type === 'Polygon').length;
     const routeCount = geoData.features.filter((feature) => feature.geometry.type === 'LineString').length;
-    status.textContent = `第一人称连续校园 ${worldWidth}×${worldDepth}m · ${blockoutCount} 个背景粗模 · ${polygonCount} 个矢量轮廓 · ${routeCount} 条路线`;
+    const highestLevel = fidelityRegistry.records.reduce(
+      (highest, record) => Math.max(highest, Number(record.currentLevel.slice(1))),
+      0,
+    );
+    status.textContent = `第一人称连续校园 ${worldWidth}×${worldDepth}m · ${blockoutCount} 个背景粗模 · ${polygonCount} 个矢量轮廓 · ${routeCount} 条路线 · 当前最高 L${highestLevel}`;
     detail.innerHTML = `
-      <p class="detail-kicker">FIRST-PERSON MODE RESTORED</p>
+      <p class="detail-kicker">HIGH-FIDELITY PIPELINE ACTIVE</p>
       <h2>${worldLayout.nameZh}</h2>
       <h3>${worldLayout.nameEn}</h3>
-      <p>第一人称水下游览重新成为默认主模式。WASD 游动、空格上浮、Shift 下潜、鼠标拖动观察、滚轮调速。</p>
-      <p>校园总览只用于辅助定位；所有地点仍处于同一张连续武汉大学地图中。</p>
+      <p>第一人称水下游览是默认主模式。点击画面锁定鼠标，WASD 游动，E 上浮，Q 或 Shift 下潜，滚轮调速。</p>
+      <p>校园总览只用于辅助定位。老图书馆已进入 L3 立面细化样板，最终目标为具有测量与误差记录的 L5 1:1 高精度资产。</p>
     `;
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知错误';
