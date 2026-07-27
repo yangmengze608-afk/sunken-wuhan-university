@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.2.0",
+  "noticeZh": "本文件只登记可追溯来源。搜索结果缩略图、无作者照片、来源不明模型和未经授权的官方视觉资产不得直接进入正式资产管线。组织结构资料不能替代空间坐标；历史地图不能冒充当前现状。",
+  "noticeEn": "Only traceable sources belong in this registry. Search-result thumbnails, unattributed photographs, unknown-origin models, and unauthorized official visual assets must not enter the production asset pipeline. Organizational sources cannot substitute for spatial coordinates, and historical maps must not be presented as current conditions.",
+  "requiredFields": [
+    "id",
+    "title",
+    "sourceType",
+    "publisherOrAuthor",
+    "urlOrArchiveReference",
+    "accessedAt",
+    "targetPlaceIds",
+    "usagePurpose",
+    "licenseOrPermission",
+    "verificationNotes"
+  ],
+  "acceptedSourceTypes": [
+    "official-map",
+    "official-publication",
+    "historic-plan",
+    "historic-photograph",
+    "field-photograph",
+    "satellite-or-aerial-reference",
+    "open-geodata",
+    "academic-publication",
+    "measurement-note",
+    "licensed-3d-asset",
+    "project-created-texture",
+    "project-created-geometry"
+  ],
+  "records": [
+    {
+      "id": "source-internal-placeholder-v2",
+      "title": "V2 工程占位轮廓",
+      "sourceType": "project-created-geometry",
+      "publisherOrAuthor": "Sunken Luojia project",
+      "urlOrArchiveReference": "public/data/campus.geodata.geojson",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "将现有中心点、长宽、朝向和道路骨架转换成可替换的 GeoJSON 工程轮廓，用于测试矢量导入、渲染和校验管线。",
+      "licenseOrPermission": "project-created-placeholder",
+      "verificationNotes": "不包含武汉大学官方地图、OSM 或第三方测绘几何。所有要素均为 placeholder，不得称为真实校园轮廓。"
+    },
+    {
+      "id": "source-whu-official-profile-2026",
+      "title": "学校简介",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学",
+      "urlOrArchiveReference": "https://www.whu.edu.cn/xxgk/xxjj.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "确认项目对象、学校公开基本信息和整体校园叙述背景，不直接复制视觉素材。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "官方网页确认校园环绕东湖、坐拥珞珈山，并有26栋早期建筑列为全国重点文物保护单位；不能替代测绘数据或建筑尺寸资料。"
+    },
+    {
+      "id": "source-whu-official-map-portal-2026",
+      "title": "Wuhan University English website map portal",
+      "sourceType": "official-map",
+      "publisherOrAuthor": "Wuhan University",
+      "urlOrArchiveReference": "https://en.whu.edu.cn/",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "记录武汉大学英文官网提供的 Map 导航入口，作为后续人工核验校园地点和道路关系的官方候选来源。",
+      "licenseOrPermission": "reference-only-map-portal-no-data-reuse-approved",
+      "verificationNotes": "官网页面存在 Map 入口，但当前尚未取得可下载、可复用且带明确许可的矢量数据；不得把网页地图抓取结果直接写入正式 GeoJSON。"
+    },
+    {
+      "id": "source-whu-schools-2026",
+      "title": "院系设置",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学",
+      "urlOrArchiveReference": "https://www.whu.edu.cn/jgsz/yxsz.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus", "coverage-humanities-social", "coverage-science", "coverage-engineering", "coverage-information-science", "coverage-medicine"],
+      "usagePurpose": "确认当前人文科学、社会科学、理学、工学、信息科学和医学六大学部及院系覆盖需求，不用于推断建筑坐标。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "组织结构只能证明最终项目不能遗漏相关学部功能；学院名称与真实物理楼栋、学部边界并非一一对应。"
+    },
+    {
+      "id": "source-whu-campus-area-grids-2020",
+      "title": "武汉大学新冠肺炎防控指挥部工作通知中的片区划分",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学",
+      "urlOrArchiveReference": "https://www.whu.edu.cn/info/5231/235724.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus", "coverage-residential-life", "coverage-engineering", "coverage-information-science", "coverage-medicine"],
+      "usagePurpose": "作为历史行政资料确认文理、工学、信息和医学等校园片区及大量住宅楼栋的存在，不直接采用网格边界。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "该资料服务于2020年防控管理，可能已过时，只能作为片区和住宅覆盖线索，不能作为2026年总图。"
+    },
+    {
+      "id": "source-whu-lakefront-planning-2016",
+      "title": "武汉与武大：打造湖山共美的时代梦想",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1002/46587.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["east-lake-shoreline", "whole-campus"],
+      "usagePurpose": "核验校园与东湖岸线、空间轴线和沿湖区域关系，仅用于总图研究。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "文章包含沿湖路段范围与规划描述；具体几何仍须地图或测量资料验证。"
+    },
+    {
+      "id": "source-whu-luojia-architecture-2022",
+      "title": "历史vs建筑：探寻珞珈山校舍90年积淀",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1007/66879.htm",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["old-dormitories", "hundred-step-stairway", "old-library", "whole-campus"],
+      "usagePurpose": "建立历史建筑群的年代、空间和文化背景资料索引，不直接复用网页图片。",
+      "licenseOrPermission": "reference-only-no-asset-reuse",
+      "verificationNotes": "可用于历史背景和资料线索，建筑比例和立面仍需多源交叉核验。"
+    },
+    {
+      "id": "source-wikimedia-osm-campus-map-2013",
+      "title": "Map of Wuhan University.svg",
+      "sourceType": "historic-plan",
+      "publisherOrAuthor": "OpenStreetMap contributors / Wikimedia Commons",
+      "urlOrArchiveReference": "https://commons.wikimedia.org/wiki/File:Map_of_Wuhan_University.svg",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "作为2012至2013年校园道路、建筑密度和片区关系的历史对照，不直接作为当前地图。",
+      "licenseOrPermission": "CC-BY-SA-2.0-attribution-and-share-alike-required-for-derivatives",
+      "verificationNotes": "文件来源为OpenStreetMap，当前版本上传于2013年。若未来直接转换或改编其几何，必须履行署名和相同方式共享义务；现阶段仅作为参考。"
+    },
+    {
+      "id": "source-openstreetmap-whu-future-export",
+      "title": "OpenStreetMap Wuhan University current export",
+      "sourceType": "open-geodata",
+      "publisherOrAuthor": "OpenStreetMap contributors",
+      "urlOrArchiveReference": "https://www.openstreetmap.org/",
+      "accessedAt": "2026-07-24",
+      "targetPlaceIds": ["whole-campus"],
+      "usagePurpose": "未来获取道路、建筑轮廓和校园边界候选数据，并与官方资料、现场照片和测量交叉核验。",
+      "licenseOrPermission": "ODbL-attribution-and-database-obligations-review-required",
+      "verificationNotes": "尚未将任何实时OSM导出写入正式总图。中国地区OSM覆盖可能不完整，必须记录导出日期、范围、对象ID和后续人工校准。"
+    }
+  ]
+}
