@@ -38,11 +38,14 @@ export class SwimFirstPersonControls {
   ) {
     this.camera.rotation.order = 'YXZ';
 
-    const startX = 140;
-    const startZ = 340;
-    const startY = sampleTerrainHeight(layout, startX, startZ) + 8;
+    const startX = -70;
+    const startZ = 90;
+    const startY = sampleTerrainHeight(layout, startX, startZ) + 10;
+    const targetX = -150;
+    const targetZ = -72;
+    const targetY = sampleTerrainHeight(layout, targetX, targetZ) + 24;
     this.savedPosition.set(startX, startY, startZ);
-    this.lookAtFrom(startX, startY, startZ, 20, sampleTerrainHeight(layout, 20, 20) + 14, 20);
+    this.lookAtFrom(startX, startY, startZ, targetX, targetY, targetZ);
 
     this.domElement.addEventListener('mousedown', this.handlePointerRequest);
     this.domElement.addEventListener('wheel', this.handleWheel, { passive: false });
@@ -68,6 +71,7 @@ export class SwimFirstPersonControls {
       this.savedPosition.copy(this.camera.position);
       if (this.isPointerLocked()) document.exitPointerLock();
       this.domElement.classList.remove('swim-active', 'pointer-locked');
+      document.body.classList.remove('pointer-locked');
     }
   }
 
@@ -168,6 +172,7 @@ export class SwimFirstPersonControls {
 
   dispose(): void {
     if (this.isPointerLocked()) document.exitPointerLock();
+    document.body.classList.remove('pointer-locked');
     this.domElement.removeEventListener('mousedown', this.handlePointerRequest);
     this.domElement.removeEventListener('wheel', this.handleWheel);
     document.removeEventListener('mousemove', this.handleMouseMove);
@@ -234,6 +239,7 @@ export class SwimFirstPersonControls {
   private readonly handlePointerLockChange = (): void => {
     const locked = this.isPointerLocked();
     this.domElement.classList.toggle('pointer-locked', locked);
+    document.body.classList.toggle('pointer-locked', locked);
     if (!locked) {
       this.keys.clear();
       this.velocity.set(0, 0, 0);
@@ -243,6 +249,7 @@ export class SwimFirstPersonControls {
   private readonly handlePointerLockError = (): void => {
     this.suppressNextClick = false;
     this.domElement.classList.remove('pointer-locked');
+    document.body.classList.remove('pointer-locked');
   };
 
   private readonly handleWheel = (event: WheelEvent): void => {
