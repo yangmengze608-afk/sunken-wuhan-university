@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "levelPolicyZh": {
+    "L0": "仅有位置或体量占位，不表达建筑真实结构。",
+    "L1": "结构粗模，能够辨认主要体量，但比例与构造尚未校准。",
+    "L2": "比例校准，建筑总长、总宽、层高、轴线与关键高差具有可追溯依据。",
+    "L3": "立面细化，门窗、柱廊、檐口、屋脊、台基与主要装饰形成完整节奏。",
+    "L4": "生产资产，具备PBR材质、UV、碰撞、LOD、光照与性能验收。",
+    "L5": "1:1高精度资产，尺寸和主要构造经图纸、测量或摄影测量交叉核验，并完成误差记录。"
+  },
+  "levelPolicyEn": {
+    "L0": "Position or mass placeholder only; no claim of architectural structure.",
+    "L1": "Recognizable structural blockout without calibrated proportions or construction.",
+    "L2": "Traceable calibration for overall dimensions, storey heights, axes, and key elevation changes.",
+    "L3": "Complete facade rhythm for doors, windows, colonnades, cornices, roof ridges, plinths, and major ornament.",
+    "L4": "Production asset with PBR materials, UVs, collision, LOD, lighting, and performance acceptance.",
+    "L5": "1:1 high-fidelity asset with major dimensions and construction cross-verified by drawings, measurement, or photogrammetry, including an error record."
+  },
+  "records": [
+    {
+      "placeId": "old-library",
+      "currentLevel": "L3",
+      "targetLevel": "L5",
+      "status": "in-progress",
+      "verifiedElements": [
+        "八角中央塔与重檐为核心识别结构",
+        "中央主体、两翼、前柱廊和角部圆顶的组合关系",
+        "正面台基与百步梯轴线关系",
+        "主要立面窗洞、屋顶层级和烟囱方向"
+      ],
+      "estimatedElements": [
+        "总长、总宽和总高",
+        "窗洞数量、间距与尺寸",
+        "柱径、柱距和柱高",
+        "屋面坡度、出檐深度与瓦作尺度",
+        "台阶数量、踏步尺寸与栏杆间距"
+      ],
+      "requiredForNextLevel": [
+        "取得至少一组可定标的正立面和侧立面参考",
+        "确定一个可信的绝对尺寸作为全模型比例基准",
+        "建立Blender源文件并导出LOD0、LOD1和LOD2 GLB",
+        "拆分石材、灰砖、红木窗、玻璃和青瓦PBR材质",
+        "记录模型相对参考图的关键点误差"
+      ],
+      "currentImplementation": "Three.js程序化L3立面细化样板；尚不是测绘级GLB资产。"
+    },
+    {
+      "placeId": "old-dormitories",
+      "currentLevel": "L1",
+      "targetLevel": "L5",
+      "status": "queued-after-old-library",
+      "verifiedElements": ["分层台地", "四组宿舍翼楼", "中央轴线", "屋顶亭阁", "红色门窗与灰砖材料方向"],
+      "estimatedElements": ["楼栋尺寸", "拱廊数量与跨度", "房间开间", "屋顶坡度", "台地高差"],
+      "requiredForNextLevel": ["整体总图定标", "正立面与侧立面参考组", "台地高差测量", "典型窗与拱廊构件表"],
+      "currentImplementation": "结构粗模和程序材质。"
+    },
+    {
+      "placeId": "administration-building",
+      "currentLevel": "L1",
+      "targetLevel": "L5",
+      "status": "queued",
+      "verifiedElements": ["中央体量", "两翼", "入口柱廊", "分层屋顶"],
+      "estimatedElements": ["全部尺寸", "窗洞节奏", "入口台阶", "材料构造"],
+      "requiredForNextLevel": ["图纸或可定标立面", "建筑平面轮廓", "材料近景照片"],
+      "currentImplementation": "结构粗模和程序材质。"
+    },
+    {
+      "placeId": "science-hall",
+      "currentLevel": "L1",
+      "targetLevel": "L5",
+      "status": "queued",
+      "verifiedElements": ["主体", "侧翼", "柱廊", "鼓座与穹顶"],
+      "estimatedElements": ["穹顶曲线", "建筑尺寸", "窗洞节奏", "立面材料"],
+      "requiredForNextLevel": ["穹顶轮廓定标", "立面和平面参考", "材料近景照片"],
+      "currentImplementation": "结构粗模和程序材质。"
+    }
+  ]
+}
