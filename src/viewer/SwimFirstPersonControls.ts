@@ -11,6 +11,22 @@ export interface SwimTelemetry {
   z: number;
 }
 
+const MOVEMENT_CODES = new Set([
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'KeyE',
+  'KeyQ',
+  'Space',
+  'ShiftLeft',
+  'ShiftRight',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+]);
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -20,6 +36,12 @@ function isFormControl(target: EventTarget | null): boolean {
     || target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement;
+}
+
+function consumeMovementEvent(event: KeyboardEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
 }
 
 export class SwimFirstPersonControls {
@@ -55,16 +77,16 @@ export class SwimFirstPersonControls {
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('pointerlockchange', this.handlePointerLockChange);
     document.addEventListener('pointerlockerror', this.handlePointerLockError);
-    window.addEventListener('keydown', this.handleKeyDown);
-    window.addEventListener('keyup', this.handleKeyUp);
+    document.addEventListener('keydown', this.handleKeyDown, true);
+    document.addEventListener('keyup', this.handleKeyUp, true);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
     window.addEventListener('blur', this.handleBlur);
   }
 
   setActive(active: boolean): void {
     if (this.active === active) return;
     this.active = active;
-    this.keys.clear();
-    this.velocity.set(0, 0, 0);
+    this.clearMovement();
 
     if (active) {
       this.camera.position.copy(this.savedPosition);
@@ -87,7 +109,7 @@ export class SwimFirstPersonControls {
   }
 
   update(deltaSeconds: number): void {
-    if (!this.active) return;
+    if (!this.active || !this.isPointerLocked()) return;
 
     const cosPitch = Math.cos(this.pitch);
     const forward = new THREE.Vector3(
@@ -102,8 +124,12 @@ export class SwimFirstPersonControls {
     if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) desired.sub(forward);
     if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) desired.add(right);
     if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) desired.sub(right);
-    if (this.keys.has('Space')) desired.y += 0.9;
-    if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) desired.y -= 1.7;
+    if (this.keys.has('KeyE') || this.keys.has('Space')) desired.y += 0.9;
+    if (
+      this.keys.has('KeyQ')
+      || this.keys.has('ShiftLeft')
+      || this.keys.has('ShiftRight')
+    ) desired.y -= 1.7;
 
     if (desired.lengthSq() > 0) desired.normalize().multiplyScalar(this.speed);
     const inertia = 1 - Math.pow(0.0012, deltaSeconds);
@@ -156,7 +182,7 @@ export class SwimFirstPersonControls {
     this.savedPosition.set(x, y, z);
     this.camera.position.copy(this.savedPosition);
     this.lookAt(target);
-    this.velocity.set(0, 0, 0);
+    this.clearMovement();
   }
 
   getTelemetry(): SwimTelemetry {
@@ -185,9 +211,15 @@ export class SwimFirstPersonControls {
     document.removeEventListener('mousemove', this.handleMouseMove);
     document.removeEventListener('pointerlockchange', this.handlePointerLockChange);
     document.removeEventListener('pointerlockerror', this.handlePointerLockError);
-    window.removeEventListener('keydown', this.handleKeyDown);
-    window.removeEventListener('keyup', this.handleKeyUp);
+    document.removeEventListener('keydown', this.handleKeyDown, true);
+    document.removeEventListener('keyup', this.handleKeyUp, true);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('blur', this.handleBlur);
+  }
+
+  private clearMovement(): void {
+    this.keys.clear();
+    this.velocity.set(0, 0, 0);
   }
 
   private tryMoveAxis(axis: 'x' | 'y' | 'z', amount: number): void {
@@ -258,36 +290,45 @@ export class SwimFirstPersonControls {
     const locked = this.isPointerLocked();
     this.domElement.classList.toggle('pointer-locked', locked);
     document.body.classList.toggle('pointer-locked', locked);
-    if (!locked) {
-      this.keys.clear();
-      this.velocity.set(0, 0, 0);
-    }
+    if (!locked) this.clearMovement();
   };
 
   private readonly handlePointerLockError = (): void => {
     this.suppressNextClick = false;
     this.domElement.classList.remove('pointer-locked');
     document.body.classList.remove('pointer-locked');
+    this.clearMovement();
   };
 
   private readonly handleWheel = (event: WheelEvent): void => {
-    if (!this.active) return;
+    if (!this.active || !this.isPointerLocked()) return;
     event.preventDefault();
     this.speed = clamp(this.speed * (event.deltaY < 0 ? 1.12 : 0.9), 6, 120);
   };
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (!this.active || isFormControl(event.target)) return;
+    if (
+      !this.active
+      || !this.isPointerLocked()
+      || isFormControl(event.target)
+      || !MOVEMENT_CODES.has(event.code)
+    ) return;
+
+    consumeMovementEvent(event);
     this.keys.add(event.code);
-    if (event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
   };
 
   private readonly handleKeyUp = (event: KeyboardEvent): void => {
+    if (!MOVEMENT_CODES.has(event.code)) return;
+    if (this.active && this.isPointerLocked()) consumeMovementEvent(event);
     this.keys.delete(event.code);
   };
 
+  private readonly handleVisibilityChange = (): void => {
+    if (document.hidden) this.clearMovement();
+  };
+
   private readonly handleBlur = (): void => {
-    this.keys.clear();
-    this.velocity.set(0, 0, 0);
+    this.clearMovement();
   };
 }
