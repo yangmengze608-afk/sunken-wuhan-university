@@ -4,6 +4,7 @@ import {
   createAdministrationBuildingDetailed,
   createScienceHallDetailed,
 } from './AcademicCoreBlockouts';
+import { CherryAvenueContextLayer } from './CherryAvenueContext';
 import { attachCollisionBoxes, collectWorldCollisionBoxes } from './collision';
 import { HeritageCoreContextLayer } from './HeritageCoreContext';
 import {
@@ -166,8 +167,18 @@ export class LandmarkBlockoutLayer {
     }
 
     scene.add(root);
-    const contextLayer = new HeritageCoreContextLayer(scene, layout, dataset);
-    this.collisionBoxes.push(...contextLayer.collisionBoxes);
+
+    const heritageContext = new HeritageCoreContextLayer(scene, layout, dataset);
+    this.collisionBoxes.push(...heritageContext.collisionBoxes);
+
+    const cherryAvenue = new CherryAvenueContextLayer(scene, layout, dataset);
+    this.collisionBoxes.push(...cherryAvenue.collisionBoxes);
+    if (cherryAvenue.placeObject) {
+      const placeId = 'cherry-blossom-avenue';
+      this.representedPlaceIds.add(placeId);
+      this.placeObjects.set(placeId, cherryAvenue.placeObject);
+      this.clickableObjects.push(...cherryAvenue.clickableObjects);
+    }
   }
 
   private placeGroup(
