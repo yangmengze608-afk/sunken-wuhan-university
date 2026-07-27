@@ -4,6 +4,7 @@ import type { CampusDataset, CampusPlace } from '../data/types';
 import { CampusGeoDataLayer } from '../geodata/CampusGeoDataLayer';
 import type { CampusGeoFeatureCollection } from '../geodata/types';
 import type { CampusCoverageDataset } from '../world/coverageTypes';
+import { LandmarkBlockoutLayer } from '../world/LandmarkBlockouts';
 import { sampleTerrainHeight } from '../world/terrain';
 import { WholeCampusWorld } from '../world/WholeCampusWorld';
 import type { WholeCampusLayout } from '../world/types';
@@ -101,11 +102,35 @@ export class CampusViewer {
     const debugZones = new URLSearchParams(window.location.search).get('debug') === '1';
     new WholeCampusWorld(this.scene, layout, dataset, coverage, debugZones);
     const geoLayer = new CampusGeoDataLayer(this.scene, layout, geoData);
+    const landmarkLayer = new LandmarkBlockoutLayer(this.scene, layout, dataset);
+
+    for (const placeId of landmarkLayer.representedPlaceIds) {
+      const oldGeoObject = geoLayer.placeObjects.get(placeId);
+      if (oldGeoObject) oldGeoObject.visible = false;
+    }
+
     for (const [placeId, object] of geoLayer.placeObjects) {
+      if (!landmarkLayer.representedPlaceIds.has(placeId)) {
+        this.placeObjects.set(placeId, object);
+      }
+    }
+    for (const [placeId, object] of landmarkLayer.placeObjects) {
       this.placeObjects.set(placeId, object);
     }
-    this.interactiveObjects.push(...geoLayer.clickableObjects);
-    this.addFallbackPlaces(geoLayer.representedPlaceIds);
+
+    this.interactiveObjects.push(
+      ...geoLayer.clickableObjects.filter((object) => {
+        const placeId = object.userData.placeId as string | null | undefined;
+        return !placeId || !landmarkLayer.representedPlaceIds.has(placeId);
+      }),
+      ...landmarkLayer.clickableObjects,
+    );
+
+    const representedPlaceIds = new Set([
+      ...geoLayer.representedPlaceIds,
+      ...landmarkLayer.representedPlaceIds,
+    ]);
+    this.addFallbackPlaces(representedPlaceIds);
 
     this.renderer.domElement.addEventListener('click', this.handleClick);
     this.resizeObserver = new ResizeObserver(() => this.resize());
