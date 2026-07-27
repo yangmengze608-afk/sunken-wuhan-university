@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "policyZh": "所有模型必须记录来源、比例、坐标、精度、许可和替换状态。未经核验的占位模型不得标记为高精度复原。",
   "policyEn": "Every model must record its sources, scale, coordinates, accuracy, licensing, and replacement status. Unverified placeholders must never be described as high-fidelity reconstructions.",
   "assets": [
@@ -21,7 +21,7 @@
       "status": "blockout",
       "accuracy": "estimated",
       "lodStatus": "procedural-blockout-only",
-      "materialStatus": "reference-informed-flat-materials",
+      "materialStatus": "reference-informed-procedural-materials",
       "sourceStatus": "partially-verified",
       "licenseStatus": "project-created-geometry-with-traceable-references"
     },
@@ -32,7 +32,7 @@
       "status": "blockout",
       "accuracy": "estimated",
       "lodStatus": "procedural-blockout-only",
-      "materialStatus": "reference-informed-flat-materials",
+      "materialStatus": "reference-informed-procedural-materials",
       "sourceStatus": "partially-verified",
       "licenseStatus": "project-created-geometry-with-traceable-references"
     },
@@ -43,7 +43,7 @@
       "status": "blockout",
       "accuracy": "estimated",
       "lodStatus": "procedural-blockout-only",
-      "materialStatus": "reference-informed-flat-materials",
+      "materialStatus": "reference-informed-procedural-materials",
       "sourceStatus": "partially-verified",
       "licenseStatus": "project-created-geometry-with-traceable-references"
     },
@@ -62,23 +62,23 @@
       "id": "asset-administration-building",
       "targetPlaceId": "administration-building",
       "modelPath": "models/administration-science/administration-building/administration-building.glb",
-      "status": "planned",
-      "accuracy": "placeholder",
-      "lodStatus": "missing",
-      "materialStatus": "missing",
-      "sourceStatus": "collecting",
-      "licenseStatus": "project-created-required"
+      "status": "blockout",
+      "accuracy": "estimated",
+      "lodStatus": "procedural-blockout-only",
+      "materialStatus": "reference-informed-procedural-materials",
+      "sourceStatus": "partially-verified",
+      "licenseStatus": "project-created-geometry-with-traceable-references"
     },
     {
       "id": "asset-science-hall",
       "targetPlaceId": "science-hall",
       "modelPath": "models/administration-science/science-hall/science-hall.glb",
-      "status": "planned",
-      "accuracy": "placeholder",
-      "lodStatus": "missing",
-      "materialStatus": "missing",
-      "sourceStatus": "collecting",
-      "licenseStatus": "project-created-required"
+      "status": "blockout",
+      "accuracy": "estimated",
+      "lodStatus": "procedural-blockout-only",
+      "materialStatus": "reference-informed-procedural-materials",
+      "sourceStatus": "partially-verified",
+      "licenseStatus": "project-created-geometry-with-traceable-references"
     },
     {
       "id": "asset-cherry-avenue",
