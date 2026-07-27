@@ -8,6 +8,7 @@
       content="水下珞珈：以武汉大学校园空间、建筑与文化记忆为核心的高精度连续校园数字重建项目。"
     />
     <title>水下珞珈 · Sunken Luojia V2</title>
+    <link rel="stylesheet" href="/src/pointerLock.css" />
   </head>
   <body class="mode-first-person catalog-closed">
     <div id="app">
@@ -47,11 +48,16 @@
 
       <div class="crosshair" aria-hidden="true"><span></span></div>
 
+      <div class="pointer-lock-hint" aria-hidden="true">
+        <strong>点击进入 360° 第一人称游览</strong>
+        <span>移动鼠标环顾 · WASD 游动 · Esc 释放鼠标</span>
+      </div>
+
       <section class="swim-hud" aria-label="第一人称游览状态">
         <div class="telemetry">
           <span>游速 <b id="ui-speed">28</b></span>
-          <span>离地 <b id="ui-clearance">8.0</b>m</span>
-          <span>坐标 <b id="ui-position">140, 340</b></span>
+          <span>离地 <b id="ui-clearance">10.0</b>m</span>
+          <span>坐标 <b id="ui-position">-70, 90</b></span>
         </div>
         <p>点击画面锁定鼠标 · 移动鼠标 360° 环顾 · Esc 释放 · WASD 游动 · 空格上浮 · Shift 下潜 · 滚轮调速</p>
       </section>
