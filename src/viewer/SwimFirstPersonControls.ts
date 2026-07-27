@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { sampleTerrainHeight } from '../world/terrain';
 import type { WholeCampusLayout } from '../world/types';
+import { CameraSway, type CameraSwayState } from './CameraSway';
 
 export interface SwimTelemetry {
   speed: number;
@@ -24,10 +25,13 @@ function isFormControl(target: EventTarget | null): boolean {
 export class SwimFirstPersonControls {
   private yaw = 0;
   private pitch = -0.04;
+  private targetYaw = 0;
+  private targetPitch = -0.04;
   private speed = 28;
   private readonly velocity = new THREE.Vector3();
   private readonly keys = new Set<string>();
   private readonly savedPosition = new THREE.Vector3();
+  private readonly cameraSway = new CameraSway();
   private active = false;
   private dragging = false;
   private draggedSincePointerDown = false;
@@ -48,6 +52,8 @@ export class SwimFirstPersonControls {
     this.lookAtFrom(startX, startY, startZ, 20, sampleTerrainHeight(layout, 20, 20) + 14, 20);
 
     this.domElement.addEventListener('mousedown', this.handleMouseDown);
+    this.domElement.addEventListener('mousemove', this.handlePointerPosition);
+    this.domElement.addEventListener('mouseleave', this.handlePointerLeave);
     this.domElement.addEventListener('wheel', this.handleWheel, { passive: false });
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('mouseup', this.handleMouseUp);
@@ -69,6 +75,7 @@ export class SwimFirstPersonControls {
     } else {
       this.savedPosition.copy(this.camera.position);
       this.dragging = false;
+      this.cameraSway.reset();
       this.domElement.classList.remove('swim-active', 'dragging');
     }
   }
@@ -79,6 +86,14 @@ export class SwimFirstPersonControls {
 
   update(deltaSeconds: number): void {
     if (!this.active) return;
+
+    const lookAlpha = 1 - Math.exp(-13 * deltaSeconds);
+    const yawDelta = Math.atan2(
+      Math.sin(this.targetYaw - this.yaw),
+      Math.cos(this.targetYaw - this.yaw),
+    );
+    this.yaw += yawDelta * lookAlpha;
+    this.pitch += (this.targetPitch - this.pitch) * lookAlpha;
 
     const cosPitch = Math.cos(this.pitch);
     const forward = new THREE.Vector3(
@@ -117,8 +132,12 @@ export class SwimFirstPersonControls {
       this.velocity.y = Math.min(this.velocity.y, 0);
     }
 
+    const movementRatio = clamp(this.velocity.length() / Math.max(this.speed, 1), 0, 1);
+    const lateralRatio = clamp(this.velocity.dot(right) / Math.max(this.speed, 1), -1, 1);
+    const sway = this.cameraSway.update(deltaSeconds, movementRatio, lateralRatio);
+
     this.savedPosition.copy(position);
-    this.applyRotation();
+    this.applyRotation(sway);
   }
 
   moveNear(target: THREE.Vector3, extent: number): void {
@@ -143,6 +162,7 @@ export class SwimFirstPersonControls {
 
     this.savedPosition.set(x, y, z);
     this.camera.position.copy(this.savedPosition);
+    this.cameraSway.reset();
     this.lookAt(target);
     this.velocity.set(0, 0, 0);
   }
@@ -167,6 +187,8 @@ export class SwimFirstPersonControls {
 
   dispose(): void {
     this.domElement.removeEventListener('mousedown', this.handleMouseDown);
+    this.domElement.removeEventListener('mousemove', this.handlePointerPosition);
+    this.domElement.removeEventListener('mouseleave', this.handlePointerLeave);
     this.domElement.removeEventListener('wheel', this.handleWheel);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseup', this.handleMouseUp);
@@ -198,10 +220,17 @@ export class SwimFirstPersonControls {
     const direction = new THREE.Vector3(toX - fromX, toY - fromY, toZ - fromZ).normalize();
     this.yaw = Math.atan2(-direction.x, -direction.z);
     this.pitch = Math.asin(clamp(direction.y, -1, 1));
+    this.targetYaw = this.yaw;
+    this.targetPitch = this.pitch;
   }
 
-  private applyRotation(): void {
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+  private applyRotation(sway: CameraSwayState = { pitch: 0, yaw: 0, roll: 0 }): void {
+    this.camera.rotation.set(
+      clamp(this.pitch + sway.pitch, -1.52, 1.52),
+      this.yaw + sway.yaw,
+      sway.roll,
+      'YXZ',
+    );
   }
 
   private readonly handleMouseDown = (event: MouseEvent): void => {
@@ -213,16 +242,25 @@ export class SwimFirstPersonControls {
     this.domElement.classList.add('dragging');
   };
 
+  private readonly handlePointerPosition = (event: MouseEvent): void => {
+    if (!this.active) return;
+    this.cameraSway.setPointerFromEvent(event, this.domElement);
+  };
+
+  private readonly handlePointerLeave = (): void => {
+    this.cameraSway.clearPointer();
+  };
+
   private readonly handleMouseMove = (event: MouseEvent): void => {
     if (!this.active || !this.dragging) return;
     const deltaX = event.clientX - this.lastX;
     const deltaY = event.clientY - this.lastY;
     if (Math.abs(deltaX) + Math.abs(deltaY) > 2) this.draggedSincePointerDown = true;
-    this.yaw -= deltaX * 0.0032;
-    this.pitch = clamp(this.pitch - deltaY * 0.0032, -1.5, 1.5);
+    this.targetYaw -= deltaX * 0.0032;
+    this.targetPitch = clamp(this.targetPitch - deltaY * 0.0032, -1.5, 1.5);
+    this.cameraSway.addLookImpulse(deltaX, deltaY);
     this.lastX = event.clientX;
     this.lastY = event.clientY;
-    this.applyRotation();
   };
 
   private readonly handleMouseUp = (): void => {
@@ -249,6 +287,7 @@ export class SwimFirstPersonControls {
   private readonly handleBlur = (): void => {
     this.keys.clear();
     this.velocity.set(0, 0, 0);
+    this.cameraSway.clearPointer();
     this.dragging = false;
     this.domElement.classList.remove('dragging');
   };
