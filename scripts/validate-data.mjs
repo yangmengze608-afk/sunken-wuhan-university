@@ -32,7 +32,7 @@ function isClosed(ring) {
     && first[1] === last[1];
 }
 
-const [world, campus, assets, coverage, geoData, sources, fidelity] = await Promise.all([
+const [world, campus, assets, coverage, geoData, sources, fidelity, calibration] = await Promise.all([
   readJson('public/data/world.layout.json'),
   readJson('public/data/campus.masterplan.json'),
   readJson('public/data/assets.registry.json'),
@@ -40,6 +40,7 @@ const [world, campus, assets, coverage, geoData, sources, fidelity] = await Prom
   readJson('public/data/campus.geodata.geojson'),
   readJson('public/data/sources.registry.json'),
   readJson('public/data/fidelity.registry.json'),
+  readJson('public/data/calibration.registry.json'),
 ]);
 
 assert(world.worldId === 'whole-wuhan-university', 'Unexpected or missing world ID');
@@ -171,9 +172,77 @@ for (const record of fidelity.records) {
   }
 }
 
+const calibrationStatuses = new Set(['estimated', 'reference-aligned', 'verified']);
+const calibrationPlaceIds = new Set();
+let calibrationDimensionCount = 0;
+for (const record of calibration.records) {
+  assert(placeIds.has(record.placeId), `Unknown calibration placeId: ${record.placeId}`);
+  assert(!calibrationPlaceIds.has(record.placeId), `Duplicate calibration record: ${record.placeId}`);
+  calibrationPlaceIds.add(record.placeId);
+  assert(record.coordinateSpace, `Missing calibration coordinate space: ${record.placeId}`);
+  assert(record.calibrationModeUrlQuery, `Missing calibration mode query: ${record.placeId}`);
+
+  const envelope = record.engineeringEnvelope;
+  assert(Number.isFinite(envelope.widthMeters) && envelope.widthMeters > 0, `Invalid envelope width: ${record.placeId}`);
+  assert(Number.isFinite(envelope.depthMeters) && envelope.depthMeters > 0, `Invalid envelope depth: ${record.placeId}`);
+  assert(Number.isFinite(envelope.heightMeters) && envelope.heightMeters > 0, `Invalid envelope height: ${record.placeId}`);
+  assert(calibrationStatuses.has(envelope.status), `Invalid envelope status: ${record.placeId}`);
+
+  const dimensionIds = new Set();
+  let verifiedDimensionCount = 0;
+  for (const dimension of record.dimensions) {
+    calibrationDimensionCount += 1;
+    assert(dimension.id, `Calibration dimension missing ID: ${record.placeId}`);
+    assert(!dimensionIds.has(dimension.id), `Duplicate calibration dimension ${dimension.id} on ${record.placeId}`);
+    dimensionIds.add(dimension.id);
+    assert(Number.isFinite(dimension.valueMeters), `Invalid dimension value ${dimension.id} on ${record.placeId}`);
+    assert(calibrationStatuses.has(dimension.status), `Invalid dimension status ${dimension.id} on ${record.placeId}`);
+    assert(Array.isArray(dimension.sourceIds) && dimension.sourceIds.length > 0, `Missing dimension sources ${dimension.id} on ${record.placeId}`);
+    for (const sourceId of dimension.sourceIds) {
+      assert(sourceIds.has(sourceId), `Unknown dimension source ${sourceId} on ${record.placeId}`);
+    }
+
+    if (dimension.status === 'reference-aligned') {
+      assert(
+        dimension.sourceIds.some((sourceId) => sourceId !== 'source-internal-placeholder-v2'),
+        `Reference-aligned dimension only uses placeholder evidence: ${dimension.id}`,
+      );
+    }
+
+    if (dimension.status === 'verified') {
+      verifiedDimensionCount += 1;
+      assert(
+        Number.isFinite(dimension.toleranceMeters) && dimension.toleranceMeters >= 0,
+        `Verified dimension lacks tolerance: ${dimension.id}`,
+      );
+      assert(
+        !dimension.sourceIds.includes('source-internal-placeholder-v2'),
+        `Verified dimension still uses placeholder evidence: ${dimension.id}`,
+      );
+    }
+  }
+
+  if (verifiedDimensionCount > 0) {
+    assert(
+      Array.isArray(record.verifiedMeasurementSourceIds)
+        && record.verifiedMeasurementSourceIds.length > 0,
+      `Verified calibration lacks measurement sources: ${record.placeId}`,
+    );
+    assert(
+      Array.isArray(record.errorRecord) && record.errorRecord.length > 0,
+      `Verified calibration lacks error records: ${record.placeId}`,
+    );
+    for (const sourceId of record.verifiedMeasurementSourceIds) {
+      assert(sourceIds.has(sourceId), `Unknown calibration measurement source ${sourceId} on ${record.placeId}`);
+      assert(sourceId !== 'source-internal-placeholder-v2', `Calibration measurement source is still placeholder: ${record.placeId}`);
+    }
+  }
+}
+
 console.log(
   `Data validation passed: ${campus.places.length} places, ${coverage.areas.length} coverage areas, `
   + `${geoData.features.length} GeoJSON features (${polygonCount} polygons, ${lineCount} lines), `
   + `${coordinateCount} coordinate positions, ${sources.records.length} registered sources, `
-  + `${fidelity.records.length} fidelity records.`,
+  + `${fidelity.records.length} fidelity records, ${calibration.records.length} calibration records `
+  + `with ${calibrationDimensionCount} dimensions.`,
 );
