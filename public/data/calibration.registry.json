@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "policyZh": "校准记录必须区分程序模型工程尺寸、资料推算尺寸和经测量核验尺寸。任何 verified 数值都必须绑定可追溯测量来源和误差记录。",
   "policyEn": "Calibration records must distinguish procedural engineering dimensions, reference estimates, and measured verified dimensions. Every verified value requires traceable measurement sources and an error record.",
   "records": [
@@ -84,6 +84,17 @@
           "sourceIds": ["source-jaabe-old-library-roof-2022"],
           "methodZh": "依据开放获取建筑学论文中由武汉大学档案馆结构图纸整理的18m×18m跨度；运行时按屋顶几何包围盒自动校准。",
           "methodEn": "Uses the 18 m by 18 m span reported from Wuhan University archival structural drawings; runtime geometry is scaled from its bounding span."
+        },
+        {
+          "id": "central-hall-clear-height",
+          "labelZh": "一层中央大厅净高",
+          "labelEn": "First-floor central hall clear height",
+          "valueMeters": 9.6,
+          "status": "verified",
+          "toleranceMeters": 0.1,
+          "sourceIds": ["source-jaabe-old-library-roof-2022", "source-whu-old-library-hall-height-2023"],
+          "methodZh": "论文与武汉大学新闻网刊载资料均记载中央大厅净高9.6米。该数值仅作为室内控制高度，不用于推算建筑总高。",
+          "methodEn": "Both the academic paper and a Wuhan University News publication state a 9.6 m clear height. This constrains the interior hall only and is not used to infer total building height."
         }
       ],
       "publishedAreaConstraints": [
@@ -100,19 +111,29 @@
           "status": "published-definition-unresolved"
         }
       ],
-      "verifiedMeasurementSourceIds": ["source-jaabe-old-library-roof-2022"],
+      "verifiedMeasurementSourceIds": [
+        "source-jaabe-old-library-roof-2022",
+        "source-whu-old-library-hall-height-2023"
+      ],
       "errorRecord": [
         {
           "dimensionIds": ["main-roof-structural-span-x", "main-roof-structural-span-z"],
           "method": "Runtime bounding-box span calibration on each LOD roof level",
           "maximumResidualMeters": 0.01,
           "status": "automatically-checked-at-model-construction"
+        },
+        {
+          "dimensionIds": ["central-hall-clear-height"],
+          "method": "Exact-height calibration overlay control line; interior geometry compliance is pending a dedicated interior model",
+          "maximumResidualMeters": 0,
+          "status": "verified-reference-control-not-yet-interior-geometry"
         }
       ],
       "requiredEvidenceForL2": [
         "取得至少一个可信的建筑总宽、柱距或门洞净宽",
         "核对4767平方米与6234平方米两种公开面积数据的统计口径",
         "取得可定标的正立面、侧立面或建筑平面图",
+        "建立符合工字形平面描述的四座附楼控制框架",
         "记录关键控制点在模型与参考资料之间的米制误差"
       ]
     }
