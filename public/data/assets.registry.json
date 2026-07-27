@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "policyZh": "所有模型必须记录来源、比例、坐标、精度、许可和替换状态。未经核验的占位模型不得标记为高精度复原。",
   "policyEn": "Every model must record its sources, scale, coordinates, accuracy, licensing, and replacement status. Unverified placeholders must never be described as high-fidelity reconstructions.",
   "assets": [
@@ -84,12 +84,12 @@
       "id": "asset-cherry-avenue",
       "targetPlaceId": "cherry-blossom-avenue",
       "modelPath": "models/campus-network/cherry-avenue/cherry-avenue.glb",
-      "status": "planned",
-      "accuracy": "placeholder",
-      "lodStatus": "missing",
-      "materialStatus": "missing",
+      "status": "blockout",
+      "accuracy": "estimated",
+      "lodStatus": "procedural-instanced-blockout-only",
+      "materialStatus": "project-created-procedural-materials",
       "sourceStatus": "collecting",
-      "licenseStatus": "mixed-project-created-and-licensed"
+      "licenseStatus": "project-created-geometry-and-materials"
     },
     {
       "id": "asset-fengyuan-building",
