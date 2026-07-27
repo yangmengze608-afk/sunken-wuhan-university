@@ -4128,4 +4128,4 @@ void main() {
       <p>第一人称水下游览重新成为默认主模式。WASD 游动、空格上浮、Shift 下潜、鼠标拖动观察、滚轮调速。</p>
       <p>校园总览只用于辅助定位；所有地点仍处于同一张连续武汉大学地图中。</p>
     `}catch(i){const e=i instanceof Error?i.message:"未知错误";ia.textContent=`加载失败：${e}`,ia.classList.add("error"),eo.innerHTML=`<p class="detail-kicker error">DATA ERROR</p><h2>校园数据未能载入</h2><p>${e}</p>`}}v0();
-//# sourceMappingURL=index-Bych7BfT.js.map
+//# sourceMappingURL=index-DEyFfsgU.js.map
