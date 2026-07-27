@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "levelPolicyZh": {
     "L0": "仅有位置或体量占位，不表达建筑真实结构。",
     "L1": "结构粗模，能够辨认主要体量，但比例与构造尚未校准。",
@@ -21,7 +21,7 @@
       "placeId": "old-library",
       "currentLevel": "L3",
       "targetLevel": "L5",
-      "status": "in-progress",
+      "status": "l4-production-readiness-in-progress",
       "verifiedElements": [
         "八角中央塔与重檐为核心识别结构",
         "中央主体、两翼、前柱廊和角部圆顶的组合关系",
@@ -38,11 +38,11 @@
       "requiredForNextLevel": [
         "取得至少一组可定标的正立面和侧立面参考",
         "确定一个可信的绝对尺寸作为全模型比例基准",
-        "建立Blender源文件并导出LOD0、LOD1和LOD2 GLB",
-        "拆分石材、灰砖、红木窗、玻璃和青瓦PBR材质",
-        "记录模型相对参考图的关键点误差"
+        "建立Blender源文件并导出可审计的LOD0、LOD1和LOD2 GLB",
+        "完成正式UV拆分与纹理密度检查",
+        "记录模型相对参考图的关键点误差并完成浏览器性能验收"
       ],
-      "currentImplementation": "Three.js程序化L3立面细化样板；尚不是测绘级GLB资产。"
+      "currentImplementation": "Three.js程序化L3立面细化资产；已具备运行时LOD0/LOD1/LOD2、程序化PBR、碰撞和尺寸校准账本，但尚无经定标的Blender/GLB源资产和真实尺寸。"
     },
     {
       "placeId": "old-dormitories",
