@@ -21,10 +21,9 @@ export function collectWorldCollisionBoxes(group: THREE.Group): THREE.Box3[] {
   return definitions.map((definition) => {
     const center = new THREE.Vector3(...definition.center);
     const size = new THREE.Vector3(...definition.size);
-    const localBox = new THREE.Box3().setFromCenterAndSize(center, size);
-    const worldBox = localBox.applyMatrix4(group.matrixWorld);
-    worldBox.userData = { label: definition.label };
-    return worldBox;
+    return new THREE.Box3()
+      .setFromCenterAndSize(center, size)
+      .applyMatrix4(group.matrixWorld);
   });
 }
 
