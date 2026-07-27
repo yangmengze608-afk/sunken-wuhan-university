@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "noticeZh": "本文件只登记可追溯来源。搜索结果缩略图、无作者照片、来源不明模型和未经授权的官方视觉资产不得直接进入正式资产管线。组织结构资料不能替代空间坐标；历史地图不能冒充当前现状。",
   "noticeEn": "Only traceable sources belong in this registry. Search-result thumbnails, unattributed photographs, unknown-origin models, and unauthorized official visual assets must not enter the production asset pipeline. Organizational sources cannot substitute for spatial coordinates, and historical maps must not be presented as current conditions.",
   "requiredFields": [
@@ -112,6 +112,90 @@
       "usagePurpose": "建立历史建筑群的年代、空间和文化背景资料索引，不直接复用网页图片。",
       "licenseOrPermission": "reference-only-no-asset-reuse",
       "verificationNotes": "可用于历史背景和资料线索，建筑比例和立面仍需多源交叉核验。"
+    },
+    {
+      "id": "source-whu-early-architecture-beauty-2016",
+      "title": "美在珞珈：美轮美奂——武汉大学早期建筑探胜（二）",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1017/46877.htm",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library", "hundred-step-stairway"],
+      "usagePurpose": "确认老图书馆的八角重檐、塔状烟囱、飞檐和室内高穹、回廊、石拱门等辨识结构，并确认百步梯与老图书馆的直接轴线关系。",
+      "licenseOrPermission": "reference-only-no-official-image-reuse",
+      "verificationNotes": "文字描述可用于结构拆分；网页照片未经单独授权，不进入贴图资产。"
+    },
+    {
+      "id": "source-whu-old-dorm-restoration-2016",
+      "title": "樱园老斋舍惊艳亮相（组图）",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1002/46686.htm",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-dormitories"],
+      "usagePurpose": "确认老斋舍红砖清水墙、红色门窗、传统门窗外观和修旧如旧的材料处理方向。",
+      "licenseOrPermission": "reference-only-no-official-image-reuse",
+      "verificationNotes": "只能用于材料与构造研究；具体尺寸、窗数和楼栋关系仍需图纸、照片与现场测量交叉核验。"
+    },
+    {
+      "id": "source-whu-encounter-campus-2015",
+      "title": "如果在武大遇见你（组图）",
+      "sourceType": "official-publication",
+      "publisherOrAuthor": "武汉大学新闻网",
+      "urlOrArchiveReference": "https://news.whu.edu.cn/info/1002/44170.htm",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-dormitories", "hundred-step-stairway", "old-library"],
+      "usagePurpose": "记录老斋舍轴线公开描述中的108级台阶，并确认从老斋舍攀升至樱顶、老图书馆的连续体验。",
+      "licenseOrPermission": "reference-only-no-official-image-reuse",
+      "verificationNotes": "108级作为当前结构粗模的步数依据；踏步宽度、进深、坡度和平台数量尚未测绘。"
+    },
+    {
+      "id": "source-hubei-archives-early-drawings-2021",
+      "title": "武汉大学早期建筑图纸",
+      "sourceType": "historic-plan",
+      "publisherOrAuthor": "湖北省档案馆 / 湖北档案信息网",
+      "urlOrArchiveReference": "https://www.hbda.gov.cn/info/3540.jspx",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library", "science-hall", "administration-building"],
+      "usagePurpose": "确认武汉大学档案馆保存1933至1936年早期建筑设计图纸，并记录老图书馆正立面与屋顶三角桁架图纸线索。",
+      "licenseOrPermission": "reference-only-archive-image-reuse-not-cleared",
+      "verificationNotes": "网页展示不等于获得图纸复制或再发布许可；本轮仅据公开文字和低分辨率展示确定结构研究方向。"
+    },
+    {
+      "id": "source-wikimedia-old-library-front-howchou-2012",
+      "title": "Wuhan University Old Library.jpg",
+      "sourceType": "field-photograph",
+      "publisherOrAuthor": "Howchou / Wikimedia Commons",
+      "urlOrArchiveReference": "https://commons.wikimedia.org/wiki/File:Wuhan_University_Old_Library.jpg",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library"],
+      "usagePurpose": "观察老图书馆正立面的中央体量、角部圆顶、台阶、窗洞节奏和屋顶层级。",
+      "licenseOrPermission": "CC-BY-SA-3.0-attribution-and-share-alike-required-for-direct-adaptation",
+      "verificationNotes": "作者Howchou，拍摄于2012-02-03。当前不直接复制图片或描摹贴图；若未来直接改编图像内容，须署名、链接许可证并遵守相同方式共享。"
+    },
+    {
+      "id": "source-wikimedia-old-library-side-tigerlihao-2012",
+      "title": "武汉大学老图书馆侧面.jpg",
+      "sourceType": "field-photograph",
+      "publisherOrAuthor": "Tigerlihao / Wikimedia Commons",
+      "urlOrArchiveReference": "https://commons.wikimedia.org/wiki/File:武汉大学老图书馆侧面.jpg",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-library"],
+      "usagePurpose": "观察侧翼长度、侧立面大窗、中央塔体与侧翼屋顶的连接方式。",
+      "licenseOrPermission": "CC-BY-SA-3.0-attribution-and-share-alike-required-for-direct-adaptation",
+      "verificationNotes": "作者Tigerlihao，拍摄于2012-03-27。当前作为构造观察参考，不直接作为网页贴图。"
+    },
+    {
+      "id": "source-wikimedia-old-dorm-howchou-2012",
+      "title": "Whu old dorm.JPG",
+      "sourceType": "field-photograph",
+      "publisherOrAuthor": "Howchou / Wikimedia Commons",
+      "urlOrArchiveReference": "https://commons.wikimedia.org/wiki/File:Whu_old_dorm.JPG",
+      "accessedAt": "2026-07-27",
+      "targetPlaceIds": ["old-dormitories", "hundred-step-stairway"],
+      "usagePurpose": "观察老斋舍沿台阶展开的翼楼、红色窗框、灰砖墙、青瓦屋顶和跨梯连廊。",
+      "licenseOrPermission": "CC-BY-SA-3.0-attribution-and-share-alike-required-for-direct-adaptation",
+      "verificationNotes": "作者Howchou，拍摄于2012-01-04。当前只用于结构与比例研究，不直接复用照片像素。"
     },
     {
       "id": "source-wikimedia-osm-campus-map-2013",
