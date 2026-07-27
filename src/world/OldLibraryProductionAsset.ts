@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createOldLibraryDetailed } from './HeritageCoreBlockouts';
+import { createOldLibraryIPlanLod0 } from './OldLibraryIPlanAsset';
 
 const VERIFIED_MAIN_ROOF_SPAN_METERS = 18;
 const VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS = 9.6;
@@ -18,9 +18,11 @@ function addBox(
   size: [number, number, number],
   position: [number, number, number],
   material: THREE.Material,
+  name?: string,
 ): THREE.Mesh {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
   mesh.position.set(...position);
+  if (name) mesh.name = name;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   group.add(mesh);
@@ -45,6 +47,33 @@ function addHipRoof(
   mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
+}
+
+function addIPlanAuxiliaryMasses(
+  group: THREE.Group,
+  detail: 'lod1' | 'lod2',
+): void {
+  for (const z of [13, -17]) {
+    for (const x of [-27, 27]) {
+      addBox(
+        group,
+        [22, detail === 'lod1' ? 14 : 13, 18],
+        [x, detail === 'lod1' ? 13 : 12.5, z],
+        materials.brick,
+        `OldLibrary-${detail}-aux-${x}-${z}`,
+      );
+      if (detail === 'lod1') {
+        addHipRoof(
+          group,
+          27,
+          23,
+          5.5,
+          [x, 23, z],
+          `OldLibrary-${detail}-aux-roof-${x}-${z}`,
+        );
+      }
+    }
+  }
 }
 
 function calibratePlanSpan(
@@ -88,42 +117,33 @@ function calibratePlanSpan(
 }
 
 function findDetailedMainRoof(group: THREE.Group): THREE.Mesh {
-  let selected: THREE.Mesh | null = null;
-  group.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    if (!(object.geometry instanceof THREE.CylinderGeometry)) return;
-    if (Math.abs(object.position.y - 45.4) > 0.4) return;
-    selected = object;
-  });
-
-  const roof = selected as THREE.Mesh | null;
-  if (roof === null) throw new Error('老图书馆 LOD0 未找到中央八角屋顶');
-  roof.name = 'OldLibraryMainOctagonalRoofLOD0';
-  return roof;
+  const selected = group.getObjectByName('OldLibraryMainOctagonalRoofLOD0');
+  if (!(selected instanceof THREE.Mesh)) {
+    throw new Error('老图书馆 LOD0 未找到中央八角屋顶');
+  }
+  return selected;
 }
 
 function createOldLibraryLod0(): THREE.Group {
-  const group = createOldLibraryDetailed();
+  const group = createOldLibraryIPlanLod0();
   const roof = findDetailedMainRoof(group);
   group.userData.roofCalibration = calibratePlanSpan(roof, VERIFIED_MAIN_ROOF_SPAN_METERS);
-  group.userData.fidelityLevel = 'LOD0-L3-detail-calibrated-roof';
+  group.userData.fidelityLevel = 'LOD0-L3-I-plan-detail-calibrated-roof';
   return group;
 }
 
 function createOldLibraryLod1(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Old Library LOD1 Architectural Silhouette';
+  group.name = 'Old Library LOD1 I-Plan Architectural Silhouette';
 
-  addBox(group, [70, 3.2, 54], [0, 1.6, 0], materials.darkStone);
-  addBox(group, [62, 3.4, 48], [0, 4.9, 0], materials.stone);
-  addBox(group, [42, 18, 34], [0, 15.5, -1], materials.brick);
-  addBox(group, [23, 14, 42], [-31.5, 13, -1], materials.brick);
-  addBox(group, [23, 14, 42], [31.5, 13, -1], materials.brick);
+  addBox(group, [78, 3.2, 58], [0, 1.6, 0], materials.darkStone);
+  addBox(group, [70, 3.4, 52], [0, 4.9, 0], materials.stone);
+  addBox(group, [34, 18, 30], [0, 15.5, -1], materials.brick);
+  addBox(group, [20, 14, 54], [0, 13, -2], materials.brick);
+  addIPlanAuxiliaryMasses(group, 'lod1');
   addBox(group, [22, 20, 9], [0, 17.5, 18.2], materials.stone);
 
-  addHipRoof(group, 29, 50, 6.2, [-31.5, 23.1, -1]);
-  addHipRoof(group, 29, 50, 6.2, [31.5, 23.1, -1]);
-  addHipRoof(group, 50, 42, 7.5, [0, 27.4, -1]);
+  addHipRoof(group, 42, 38, 7.2, [0, 27.2, -1]);
 
   const tower = new THREE.Mesh(
     new THREE.CylinderGeometry(10.5, 11.8, 15.5, 8),
@@ -143,34 +163,25 @@ function createOldLibraryLod1(): THREE.Group {
     'OldLibraryMainOctagonalRoofLOD1',
   );
 
-  for (const x of [-22.5, 22.5]) {
-    const corner = new THREE.Mesh(
-      new THREE.CylinderGeometry(6.2, 6.8, 10.5, 12),
-      materials.stone,
-    );
-    corner.position.set(x, 13.7, 17.4);
-    corner.castShadow = true;
-    group.add(corner);
-  }
-
-  for (const x of [-15, -9, -3, 3, 9, 15]) {
-    addBox(group, [2.5, 3.2, 0.28], [x, 15, 16.25], materials.timber);
+  for (const x of [-13.5, -9, -4.5, 0, 4.5, 9, 13.5]) {
+    addBox(group, [2.4, 3.1, 0.28], [x, 15, 14.2], materials.timber);
   }
 
   group.userData.roofCalibration = calibratePlanSpan(mainRoof, VERIFIED_MAIN_ROOF_SPAN_METERS);
-  group.userData.fidelityLevel = 'LOD1-structure-calibrated-roof';
+  group.userData.planComposition = 'I-shaped central main building with four auxiliary buildings';
+  group.userData.fidelityLevel = 'LOD1-I-plan-structure-calibrated-roof';
   return group;
 }
 
 function createOldLibraryLod2(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Old Library LOD2 Distant Massing';
+  group.name = 'Old Library LOD2 I-Plan Distant Massing';
 
-  addBox(group, [70, 5.5, 54], [0, 2.75, 0], materials.darkStone);
-  addBox(group, [42, 18, 34], [0, 15.5, -1], materials.brick);
-  addBox(group, [23, 14, 42], [-31.5, 13, -1], materials.brick);
-  addBox(group, [23, 14, 42], [31.5, 13, -1], materials.brick);
-  addHipRoof(group, 82, 56, 8.5, [0, 26.5, -1]);
+  addBox(group, [78, 5.5, 58], [0, 2.75, 0], materials.darkStone);
+  addBox(group, [34, 18, 30], [0, 15.5, -1], materials.brick);
+  addBox(group, [20, 13, 54], [0, 12.5, -2], materials.brick);
+  addIPlanAuxiliaryMasses(group, 'lod2');
+  addHipRoof(group, 70, 58, 8.2, [0, 26.5, -2]);
 
   const tower = new THREE.Mesh(
     new THREE.CylinderGeometry(10.8, 12, 18, 8),
@@ -190,7 +201,8 @@ function createOldLibraryLod2(): THREE.Group {
   );
 
   group.userData.roofCalibration = calibratePlanSpan(mainRoof, VERIFIED_MAIN_ROOF_SPAN_METERS);
-  group.userData.fidelityLevel = 'LOD2-silhouette-calibrated-roof';
+  group.userData.planComposition = 'I-shaped central main building with four auxiliary buildings';
+  group.userData.fidelityLevel = 'LOD2-I-plan-silhouette-calibrated-roof';
   return group;
 }
 
@@ -221,8 +233,8 @@ function createCalibrationOverlay(): THREE.Group {
   const overlay = new THREE.Group();
   overlay.name = 'Old Library Calibration Overlay';
   overlay.userData.engineeringEnvelope = {
-    widthMeters: 86.5,
-    depthMeters: 62,
+    widthMeters: 78,
+    depthMeters: 65,
     heightMeters: 62.5,
     status: 'estimated-from-current-procedural-model',
   };
@@ -241,26 +253,26 @@ function createCalibrationOverlay(): THREE.Group {
   };
 
   const box = new THREE.Box3(
-    new THREE.Vector3(-43.25, 0, -26),
-    new THREE.Vector3(43.25, 62.5, 36),
+    new THREE.Vector3(-39, 0, -28),
+    new THREE.Vector3(39, 62.5, 37),
   );
   overlay.add(new THREE.Box3Helper(box, new THREE.Color(0xf0c875)));
   addAxisLine(
     overlay,
-    new THREE.Vector3(-43.25, 0.6, 37.5),
-    new THREE.Vector3(43.25, 0.6, 37.5),
+    new THREE.Vector3(-39, 0.6, 38.5),
+    new THREE.Vector3(39, 0.6, 38.5),
     0xf0c875,
   );
   addAxisLine(
     overlay,
-    new THREE.Vector3(44.8, 0.6, -26),
-    new THREE.Vector3(44.8, 0.6, 36),
+    new THREE.Vector3(40.5, 0.6, -28),
+    new THREE.Vector3(40.5, 0.6, 37),
     0x70c7d6,
   );
   addAxisLine(
     overlay,
-    new THREE.Vector3(46.5, 0, 36),
-    new THREE.Vector3(46.5, 62.5, 36),
+    new THREE.Vector3(42, 0, 37),
+    new THREE.Vector3(42, 62.5, 37),
     0xd98278,
   );
 
@@ -299,6 +311,7 @@ export function createOldLibraryProductionAsset(): THREE.Group {
   root.userData.fidelityLevel = 'L3';
   root.userData.targetFidelityLevel = 'L5';
   root.userData.lodDistancesMeters = [0, 180, 420];
+  root.userData.planComposition = 'I-shaped central main building with four auxiliary buildings';
   root.userData.verifiedDimensions = {
     mainRoofStructuralSpanMeters: [18, 18],
     centralHallClearHeightMeters: VERIFIED_CENTRAL_HALL_CLEAR_HEIGHT_METERS,
